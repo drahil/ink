@@ -106,7 +106,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.status = m.editorCursorStatus()
 			}
 		default:
-			m.status = fmt.Sprintf("pressed %q", msg.String())
+			if m.focused == PaneEditor && len(msg.Runes) > 0 {
+				m.editor.InsertRune(msg.Runes[0])
+				m.cursorVisible = true
+				m.status = m.editorCursorStatus()
+			} else {
+				m.status = fmt.Sprintf("pressed %q", msg.String())
+			}
 		}
 	}
 
