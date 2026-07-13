@@ -66,6 +66,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "tab":
 			m.focusNextPane()
+		case "up":
+			if m.focused == PaneEditor {
+				m.editor.MoveCursorUp()
+				m.status = m.editorCursorStatus()
+			}
+		case "down":
+			if m.focused == PaneEditor {
+				m.editor.MoveCursorDown()
+				m.status = m.editorCursorStatus()
+			}
+		case "right":
+			if m.focused == PaneEditor {
+				m.editor.MoveCursorRight()
+				m.status = m.editorCursorStatus()
+			}
+		case "left":
+			if m.focused == PaneEditor {
+				m.editor.MoveCursorLeft()
+				m.status = m.editorCursorStatus()
+			}
 		default:
 			m.status = fmt.Sprintf("pressed %q", msg.String())
 		}
@@ -108,6 +128,10 @@ func (m *Model) focusNextPane() {
 	}
 
 	m.status = fmt.Sprintf("focused %s pane", m.focused)
+}
+
+func (m Model) editorCursorStatus() string {
+	return fmt.Sprintf("row:%d --- column:%d", m.editor.Cursor.Row, m.editor.Cursor.Column)
 }
 
 func min(a, b int) int {
