@@ -3,6 +3,8 @@ package ui
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 type EditorPane struct {
@@ -15,6 +17,10 @@ type CursorPosition struct {
 	Column int
 }
 
+var cursorStyle = lipgloss.NewStyle().
+	Background(lipgloss.Color("15")).
+	Foreground(lipgloss.Color("0"))
+
 func NewEditorPane() EditorPane {
 	return EditorPane{
 		Content: "<?php\n\necho 'hello';\n",
@@ -25,7 +31,7 @@ func NewEditorPane() EditorPane {
 	}
 }
 
-func (e EditorPane) View(width, height int, focused bool) string {
+func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) string {
 	var b strings.Builder
 
 	b.WriteString(PaneTitle("editor", focused))
@@ -34,12 +40,8 @@ func (e EditorPane) View(width, height int, focused bool) string {
 	fmt.Fprintf(&b, "cursor col: %d\n\n", e.Cursor.Column)
 
 	for row, line := range e.lines() {
-		marker := "  "
-		if row == e.Cursor.Row {
-			marker = "> "
-		}
-
-		fmt.Fprintf(&b, "%s%s\n", marker, line)
+		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
+		fmt.Fprintf(&b, "%s\n", e.renderLine(line, lineCursorVisible))
 	}
 
 	return RenderPane(width, height, b.String(), focused)
@@ -97,4 +99,27 @@ func (e *EditorPane) clampCursorColumn() {
 	if e.Cursor.Column > lineLength {
 		e.Cursor.Column = lineLength
 	}
+}
+
+func (e EditorPane) renderLine(line string, cursorVisible bool) string {
+	if !cursorVisible {
+		return line
+	}
+
+	runes := []rune(line)
+	column := e.Cursor.Column
+
+	if column < 0 {
+		column = 0
+	}
+
+	if column >= len(runes) {
+		return string(runes) + cursorStyle.Render(" ")
+	}
+
+	before := string(runes[:column])
+	cursor := cursorStyle.Render(string(runes[column]))
+	after := string(runes[column+1:])
+
+	return before + cursor + after
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -17,23 +18,29 @@ const (
 	PaneCommand
 )
 
+type cursorBlinkMsg time.Time
+
+const cursorBlinkInterval = 500 * time.Millisecond
+
 type Model struct {
-	width   int
-	height  int
-	focused Pane
-	status  string
-	files   ui.FilesPane
-	editor  ui.EditorPane
-	command ui.CommandPane
+	width         int
+	height        int
+	focused       Pane
+	status        string
+	cursorVisible bool
+	files         ui.FilesPane
+	editor        ui.EditorPane
+	command       ui.CommandPane
 }
 
 func NewModel() Model {
 	return Model{
-		focused: PaneEditor,
-		status:  "ready",
-		files:   ui.NewFilesPane(),
-		editor:  ui.NewEditorPane(),
-		command: ui.NewCommandPane(),
+		focused:       PaneEditor,
+		status:        "ready",
+		cursorVisible: true,
+		files:         ui.NewFilesPane(),
+		editor:        ui.NewEditorPane(),
+		command:       ui.NewCommandPane(),
 	}
 }
 
@@ -51,7 +58,7 @@ func (p Pane) String() string {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return blinkCursor()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -60,6 +67,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.status = fmt.Sprintf("terminal resized to %dx%d", m.width, m.height)
+	case cursorBlinkMsg:
+		if m.focused == PaneEditor {
+			m.cursorVisible = !m.cursorVisible
+		} else {
+			m.cursorVisible = false
+		}
+
+		return m, blinkCursor()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -69,21 +84,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up":
 			if m.focused == PaneEditor {
 				m.editor.MoveCursorUp()
+				m.cursorVisible = true
 				m.status = m.editorCursorStatus()
 			}
 		case "down":
 			if m.focused == PaneEditor {
 				m.editor.MoveCursorDown()
+				m.cursorVisible = true
 				m.status = m.editorCursorStatus()
 			}
 		case "right":
 			if m.focused == PaneEditor {
 				m.editor.MoveCursorRight()
+				m.cursorVisible = true
 				m.status = m.editorCursorStatus()
 			}
 		case "left":
 			if m.focused == PaneEditor {
 				m.editor.MoveCursorLeft()
+				m.cursorVisible = true
 				m.status = m.editorCursorStatus()
 			}
 		default:
@@ -109,7 +128,7 @@ func (m Model) View() string {
 	filesWidth := min(28, max(18, m.width/4))
 	editorWidth := max(20, m.width-filesWidth)
 
-	editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor)
+	editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
 	filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles)
 	main := lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
 	command := m.command.View(m.width, commandHeight, m.focused == PaneCommand)
@@ -128,10 +147,17 @@ func (m *Model) focusNextPane() {
 	}
 
 	m.status = fmt.Sprintf("focused %s pane", m.focused)
+	m.cursorVisible = m.focused == PaneEditor
 }
 
 func (m Model) editorCursorStatus() string {
 	return fmt.Sprintf("row:%d --- column:%d", m.editor.Cursor.Row, m.editor.Cursor.Column)
+}
+
+func blinkCursor() tea.Cmd {
+	return tea.Tick(cursorBlinkInterval, func(t time.Time) tea.Msg {
+		return cursorBlinkMsg(t)
+	})
 }
 
 func min(a, b int) int {
