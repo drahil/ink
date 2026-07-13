@@ -126,24 +126,7 @@ func (e EditorPane) renderLine(line string, cursorVisible bool) string {
 
 func (e *EditorPane) InsertRune(r rune) {
 	lines := e.lines()
-
-	if e.Cursor.Row < 0 {
-		e.Cursor.Row = 0
-	}
-
-	if e.Cursor.Row >= len(lines) {
-		e.Cursor.Row = len(lines) - 1
-	}
-
 	currentLine := []rune(lines[e.Cursor.Row])
-
-	if e.Cursor.Column < 0 {
-		e.Cursor.Column = 0
-	}
-
-	if e.Cursor.Column > len(currentLine) {
-		e.Cursor.Column = len(currentLine)
-	}
 
 	before := currentLine[:e.Cursor.Column]
 	after := currentLine[e.Cursor.Column:]
@@ -154,4 +137,22 @@ func (e *EditorPane) InsertRune(r rune) {
 	lines[e.Cursor.Row] = string(nextLine)
 	e.Content = strings.Join(lines, "\n")
 	e.MoveCursorRight()
+}
+
+func (e *EditorPane) Backspace() {
+	lines := e.lines()
+
+	if e.Cursor.Column == 0 {
+		return
+	}
+
+	currentLine := []rune(lines[e.Cursor.Row])
+	before := currentLine[:e.Cursor.Column-1]
+	after := currentLine[e.Cursor.Column:]
+	nextLine := make([]rune, 0, len(currentLine)-1)
+	nextLine = append(nextLine, before...)
+	nextLine = append(nextLine, after...)
+	lines[e.Cursor.Row] = string(nextLine)
+	e.Content = strings.Join(lines, "\n")
+	e.MoveCursorLeft()
 }

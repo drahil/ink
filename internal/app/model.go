@@ -76,47 +76,64 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, blinkCursor()
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "tab":
-			m.focusNextPane()
-		case "up":
-			if m.focused == PaneEditor {
-				m.editor.MoveCursorUp()
-				m.cursorVisible = true
-				m.status = m.editorCursorStatus()
-			}
-		case "down":
-			if m.focused == PaneEditor {
-				m.editor.MoveCursorDown()
-				m.cursorVisible = true
-				m.status = m.editorCursorStatus()
-			}
-		case "right":
-			if m.focused == PaneEditor {
-				m.editor.MoveCursorRight()
-				m.cursorVisible = true
-				m.status = m.editorCursorStatus()
-			}
-		case "left":
-			if m.focused == PaneEditor {
-				m.editor.MoveCursorLeft()
-				m.cursorVisible = true
-				m.status = m.editorCursorStatus()
-			}
-		default:
-			if m.focused == PaneEditor && len(msg.Runes) > 0 {
-				m.editor.InsertRune(msg.Runes[0])
-				m.cursorVisible = true
-				m.status = m.editorCursorStatus()
-			} else {
-				m.status = fmt.Sprintf("pressed %q", msg.String())
-			}
-		}
+		return m.handleKey(msg)
 	}
 
 	return m, nil
+}
+
+func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "tab":
+		m.focusNextPane()
+		return m, nil
+	}
+
+	switch m.focused {
+	case PaneEditor:
+		m.handleEditorKey(msg)
+	case PaneFiles:
+		m.handleFilesKey(msg)
+	case PaneCommand:
+		m.handleCommandKey(msg)
+	}
+
+	return m, nil
+}
+
+func (m *Model) handleEditorKey(msg tea.KeyMsg) {
+	switch msg.String() {
+	case "up":
+		m.editor.MoveCursorUp()
+	case "down":
+		m.editor.MoveCursorDown()
+	case "right":
+		m.editor.MoveCursorRight()
+	case "left":
+		m.editor.MoveCursorLeft()
+	case "backspace":
+		m.editor.Backspace()
+	default:
+		if len(msg.Runes) == 0 {
+			m.status = fmt.Sprintf("pressed %q", msg.String())
+			return
+		}
+
+		m.editor.InsertRune(msg.Runes[0])
+	}
+
+	m.cursorVisible = true
+	m.status = m.editorCursorStatus()
+}
+
+func (m *Model) handleFilesKey(msg tea.KeyMsg) {
+	m.status = fmt.Sprintf("files pressed %q", msg.String())
+}
+
+func (m *Model) handleCommandKey(msg tea.KeyMsg) {
+	m.status = fmt.Sprintf("command pressed %q", msg.String())
 }
 
 func (m Model) View() string {
