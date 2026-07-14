@@ -76,6 +76,16 @@ func (e *EditorPane) MoveCursorRight() {
 	}
 }
 
+func (e *EditorPane) MoveCursorToTheNextRow() {
+	e.Cursor.Row++
+	e.Cursor.Column = 0
+}
+
+func (e *EditorPane) MoveCursorToThePreviousRow() {
+	e.Cursor.Row--
+	e.Cursor.Column = e.currentLineLength()
+}
+
 func (e EditorPane) lines() []string {
 	lines := strings.Split(e.Content, "\n")
 	if len(lines) == 0 {
@@ -143,6 +153,20 @@ func (e *EditorPane) Backspace() {
 	lines := e.lines()
 
 	if e.Cursor.Column == 0 {
+		if e.Cursor.Row == 0 {
+			return
+		}
+
+		previousLine := lines[e.Cursor.Row-1]
+		currentLine := lines[e.Cursor.Row]
+		e.MoveCursorToThePreviousRow()
+
+		nextLines := make([]string, 0, len(lines)-1)
+		nextLines = append(nextLines, lines[:e.Cursor.Row]...)
+		nextLines = append(nextLines, previousLine+currentLine)
+		nextLines = append(nextLines, lines[e.Cursor.Row+2:]...)
+
+		e.Content = strings.Join(nextLines, "\n")
 		return
 	}
 
@@ -155,4 +179,21 @@ func (e *EditorPane) Backspace() {
 	lines[e.Cursor.Row] = string(nextLine)
 	e.Content = strings.Join(lines, "\n")
 	e.MoveCursorLeft()
+}
+
+func (e *EditorPane) Enter() {
+	lines := e.lines()
+	currentLine := []rune(lines[e.Cursor.Row])
+
+	before := currentLine[:e.Cursor.Column]
+	after := currentLine[e.Cursor.Column:]
+
+	nextLines := make([]string, 0, len(lines)+1)
+	nextLines = append(nextLines, lines[:e.Cursor.Row]...)
+	nextLines = append(nextLines, string(before), string(after))
+	nextLines = append(nextLines, lines[e.Cursor.Row+1:]...)
+
+	lines = nextLines
+	e.Content = strings.Join(lines, "\n")
+	e.MoveCursorToTheNextRow()
 }

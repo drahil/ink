@@ -115,6 +115,8 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) {
 		m.editor.MoveCursorLeft()
 	case "backspace":
 		m.editor.Backspace()
+	case "enter":
+		m.editor.Enter()
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())
