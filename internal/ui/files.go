@@ -6,6 +6,7 @@ type FilesPane struct {
 	Items       []string
 	SearchQuery string
 	Cursor      CursorPosition
+	Selected    int
 }
 
 func NewFilesPane() FilesPane {
@@ -28,14 +29,23 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 	b.WriteString("search: ")
 	b.WriteString(f.Cursor.RenderLine(f.SearchQuery, focused && cursorVisible))
 	b.WriteString("\n\n")
-	b.WriteString(strings.Join(f.visibleItems(), "\n"))
+	for index, item := range f.visibleItems() {
+		if index == f.Selected {
+			b.WriteString("> ")
+		} else {
+			b.WriteString("  ")
+		}
 
+		b.WriteString(item)
+		b.WriteString("\n")
+	}
 	return RenderPane(width, height, b.String(), focused)
 }
 
 func (f *FilesPane) Query(r rune) {
 	f.SearchQuery = f.SearchQuery + string(r)
 	f.MoveCursorRight()
+	f.clampSelection()
 }
 
 func (f *FilesPane) MoveCursorRight() {
@@ -65,11 +75,13 @@ func (f *FilesPane) Backspace() {
 	nextLine = append(nextLine, after...)
 	f.SearchQuery = string(nextLine)
 	f.MoveCursorLeft()
+	f.clampSelection()
 }
 
 func (f *FilesPane) ClearSearch() {
 	f.SearchQuery = ""
 	f.MoveCursorToBeginningOfLine()
+	f.clampSelection()
 }
 
 func (f FilesPane) visibleItems() []string {
@@ -86,4 +98,29 @@ func (f FilesPane) visibleItems() []string {
 	}
 
 	return visibleItems
+}
+
+func (f *FilesPane) MoveSelectionUp() {
+	if f.Selected > 0 {
+		f.Selected--
+	}
+}
+
+func (f *FilesPane) MoveSelectionDown() {
+	lines := f.visibleItems()
+	if f.Selected < len(lines)-1 {
+		f.Selected++
+	}
+}
+
+func (f *FilesPane) clampSelection() {
+	items := f.visibleItems()
+	if len(items) == 0 {
+		f.Selected = 0
+		return
+	}
+
+	if f.Selected >= len(items) {
+		f.Selected = len(items) - 1
+	}
 }

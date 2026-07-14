@@ -97,3 +97,9 @@ func (c CursorPosition) RenderLine(line string, cursorVisible bool) string {
 
 	return before + cursor + after
 }
+
+func (c *CursorPosition) ClampCursorColumn(lineLength int) {
+	if c.Column > lineLength {
+		c.Column = lineLength
+	}
+}

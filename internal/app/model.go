@@ -136,6 +136,10 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 		m.files.Backspace()
 	case "esc":
 		m.files.ClearSearch()
+	case "up":
+		m.files.MoveSelectionUp()
+	case "down":
+		m.files.MoveSelectionDown()
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())

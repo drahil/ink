@@ -47,7 +47,7 @@ func (e *EditorPane) MoveCursorUp() {
 		e.Cursor.Row--
 	}
 
-	e.clampCursorColumn()
+	e.Cursor.ClampCursorColumn(e.currentLineLength())
 }
 
 func (e *EditorPane) MoveCursorDown() {
@@ -56,7 +56,7 @@ func (e *EditorPane) MoveCursorDown() {
 		e.Cursor.Row++
 	}
 
-	e.clampCursorColumn()
+	e.Cursor.ClampCursorColumn(e.currentLineLength())
 }
 
 func (e *EditorPane) MoveCursorLeft() {
@@ -97,13 +97,6 @@ func (e EditorPane) currentLineLength() int {
 	}
 
 	return len([]rune(lines[e.Cursor.Row]))
-}
-
-func (e *EditorPane) clampCursorColumn() {
-	lineLength := e.currentLineLength()
-	if e.Cursor.Column > lineLength {
-		e.Cursor.Column = lineLength
-	}
 }
 
 func (e *EditorPane) InsertRune(r rune) {
