@@ -68,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.status = fmt.Sprintf("terminal resized to %dx%d", m.width, m.height)
 	case cursorBlinkMsg:
-		if m.focused == PaneEditor {
+		if m.focused == PaneEditor || m.focused == PaneFiles {
 			m.cursorVisible = !m.cursorVisible
 		} else {
 			m.cursorVisible = false
@@ -116,7 +116,7 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) {
 	case "backspace":
 		m.editor.Backspace()
 	case "enter":
-		m.editor.Enter()
+		m.editor.InsertNewline()
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())
@@ -131,7 +131,21 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) {
 }
 
 func (m *Model) handleFilesKey(msg tea.KeyMsg) {
-	m.status = fmt.Sprintf("files pressed %q", msg.String())
+	switch msg.String() {
+	case "backspace":
+		m.files.Backspace()
+	case "esc":
+		m.files.ClearSearch()
+	default:
+		if len(msg.Runes) == 0 {
+			m.status = fmt.Sprintf("pressed %q", msg.String())
+			return
+		}
+
+		m.files.Query(msg.Runes[0])
+	}
+
+	m.status = "files search: " + m.files.SearchQuery
 }
 
 func (m *Model) handleCommandKey(msg tea.KeyMsg) {
@@ -154,7 +168,7 @@ func (m Model) View() string {
 	editorWidth := max(20, m.width-filesWidth)
 
 	editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
-	filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles)
+	filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible)
 	main := lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
 	command := m.command.View(m.width, commandHeight, m.focused == PaneCommand)
 

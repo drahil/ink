@@ -12,11 +12,6 @@ type EditorPane struct {
 	Cursor  CursorPosition
 }
 
-type CursorPosition struct {
-	Row    int
-	Column int
-}
-
 var cursorStyle = lipgloss.NewStyle().
 	Background(lipgloss.Color("15")).
 	Foreground(lipgloss.Color("0"))
@@ -41,7 +36,7 @@ func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) st
 
 	for row, line := range e.lines() {
 		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
-		fmt.Fprintf(&b, "%s\n", e.renderLine(line, lineCursorVisible))
+		fmt.Fprintf(&b, "%s\n", e.Cursor.RenderLine(line, lineCursorVisible))
 	}
 
 	return RenderPane(width, height, b.String(), focused)
@@ -76,12 +71,12 @@ func (e *EditorPane) MoveCursorRight() {
 	}
 }
 
-func (e *EditorPane) MoveCursorToTheNextRow() {
+func (e *EditorPane) MoveCursorToNextLine() {
 	e.Cursor.Row++
 	e.Cursor.Column = 0
 }
 
-func (e *EditorPane) MoveCursorToThePreviousRow() {
+func (e *EditorPane) MoveCursorToPreviousLine() {
 	e.Cursor.Row--
 	e.Cursor.Column = e.currentLineLength()
 }
@@ -111,29 +106,6 @@ func (e *EditorPane) clampCursorColumn() {
 	}
 }
 
-func (e EditorPane) renderLine(line string, cursorVisible bool) string {
-	if !cursorVisible {
-		return line
-	}
-
-	runes := []rune(line)
-	column := e.Cursor.Column
-
-	if column < 0 {
-		column = 0
-	}
-
-	if column >= len(runes) {
-		return string(runes) + cursorStyle.Render(" ")
-	}
-
-	before := string(runes[:column])
-	cursor := cursorStyle.Render(string(runes[column]))
-	after := string(runes[column+1:])
-
-	return before + cursor + after
-}
-
 func (e *EditorPane) InsertRune(r rune) {
 	lines := e.lines()
 	currentLine := []rune(lines[e.Cursor.Row])
@@ -159,7 +131,7 @@ func (e *EditorPane) Backspace() {
 
 		previousLine := lines[e.Cursor.Row-1]
 		currentLine := lines[e.Cursor.Row]
-		e.MoveCursorToThePreviousRow()
+		e.MoveCursorToPreviousLine()
 
 		nextLines := make([]string, 0, len(lines)-1)
 		nextLines = append(nextLines, lines[:e.Cursor.Row]...)
@@ -181,7 +153,7 @@ func (e *EditorPane) Backspace() {
 	e.MoveCursorLeft()
 }
 
-func (e *EditorPane) Enter() {
+func (e *EditorPane) InsertNewline() {
 	lines := e.lines()
 	currentLine := []rune(lines[e.Cursor.Row])
 
@@ -195,5 +167,5 @@ func (e *EditorPane) Enter() {
 
 	lines = nextLines
 	e.Content = strings.Join(lines, "\n")
-	e.MoveCursorToTheNextRow()
+	e.MoveCursorToNextLine()
 }

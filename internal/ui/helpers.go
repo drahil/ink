@@ -26,6 +26,11 @@ var (
 			Padding(0, 1)
 )
 
+type CursorPosition struct {
+	Row    int
+	Column int
+}
+
 func RenderHeader(width int, focused string) string {
 	text := fmt.Sprintf("ink | focused: %s", focused)
 
@@ -68,4 +73,27 @@ func max(a, b int) int {
 	}
 
 	return b
+}
+
+func (c CursorPosition) RenderLine(line string, cursorVisible bool) string {
+	if !cursorVisible {
+		return line
+	}
+
+	runes := []rune(line)
+	column := c.Column
+
+	if column < 0 {
+		column = 0
+	}
+
+	if column >= len(runes) {
+		return string(runes) + cursorStyle.Render(" ")
+	}
+
+	before := string(runes[:column])
+	cursor := cursorStyle.Render(string(runes[column]))
+	after := string(runes[column+1:])
+
+	return before + cursor + after
 }
