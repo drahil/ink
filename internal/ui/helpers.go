@@ -31,8 +31,8 @@ type CursorPosition struct {
 	Column int
 }
 
-func RenderHeader(width int, focused string) string {
-	text := fmt.Sprintf("ink | focused: %s", focused)
+func RenderHeader(width int) string {
+	text := fmt.Sprintf("ink == nulla dies sine linea")
 
 	return headerStyle.
 		Width(max(0, width-2)).
@@ -40,7 +40,8 @@ func RenderHeader(width int, focused string) string {
 }
 
 func RenderStatusBar(width int, status string) string {
-	text := fmt.Sprintf("status: %s | keys: tab focus | q quit | ctrl+c quit", status)
+	text := fmt.Sprintf("status: %s | keys: tab focus | alt+1 files | q quit | ctrl+c quit", status)
+	text = truncateRunes(text, max(0, width-2))
 
 	return statusStyle.
 		Width(max(0, width-2)).
@@ -73,6 +74,23 @@ func max(a, b int) int {
 	}
 
 	return b
+}
+
+func truncateRunes(value string, maxLength int) string {
+	runes := []rune(value)
+	if len(runes) <= maxLength {
+		return value
+	}
+
+	if maxLength <= 0 {
+		return ""
+	}
+
+	if maxLength <= 3 {
+		return string(runes[:maxLength])
+	}
+
+	return string(runes[:maxLength-3]) + "..."
 }
 
 func (c CursorPosition) RenderLine(line string, cursorVisible bool) string {

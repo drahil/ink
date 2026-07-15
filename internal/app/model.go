@@ -32,6 +32,7 @@ type Model struct {
 	files         ui.FilesPane
 	editor        ui.EditorPane
 	command       ui.CommandPane
+	filesVisible  bool
 }
 
 func NewModel() Model {
@@ -48,6 +49,7 @@ func NewModel() Model {
 		files:         ui.NewFilesPane(items),
 		editor:        ui.NewEditorPane(),
 		command:       ui.NewCommandPane(),
+		filesVisible:  true,
 	}
 }
 
@@ -95,6 +97,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "tab":
 		m.focusNextPane()
+		return m, nil
+	case "alt+1", "cmd+1":
+		m.toggleFilesPane()
 		return m, nil
 	}
 
@@ -186,22 +191,32 @@ func (m Model) View() string {
 		return "starting..."
 	}
 
-	header := ui.RenderHeader(m.width, m.focused.String())
+	header := ui.RenderHeader(m.width)
 	status := ui.RenderStatusBar(m.width, m.status)
 
 	headerHeight := lipgloss.Height(header)
 	statusHeight := lipgloss.Height(status)
 	commandHeight := 5
-	mainHeight := max(3, m.height-headerHeight-statusHeight-commandHeight)
-	filesWidth := min(48, max(32, m.width/3))
-	editorWidth := max(20, m.width-filesWidth)
+	mainHeight := max(3, m.height-headerHeight-statusHeight-commandHeight-2)
 
-	editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
-	filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible)
-	main := lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
+	main := m.renderMain(mainHeight)
 	command := m.command.View(m.width, commandHeight, m.focused == PaneCommand)
 
 	return lipgloss.JoinVertical(lipgloss.Left, header, main, command, status)
+}
+
+func (m Model) renderMain(mainHeight int) string {
+	if m.filesVisible {
+		filesWidth := min(48, max(32, m.width/3))
+		editorWidth := max(20, m.width-filesWidth)
+		editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
+		filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible)
+
+		return lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
+	}
+
+	editorWidth := max(20, m.width)
+	return m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
 }
 
 func (m *Model) focusNextPane() {
@@ -211,11 +226,15 @@ func (m *Model) focusNextPane() {
 	case PaneEditor:
 		m.focused = PaneCommand
 	case PaneCommand:
-		m.focused = PaneFiles
+		if m.filesVisible {
+			m.focused = PaneFiles
+		} else {
+			m.focused = PaneEditor
+		}
 	}
 
 	m.status = fmt.Sprintf("focused %s pane", m.focused)
-	m.cursorVisible = m.focused == PaneEditor
+	m.cursorVisible = m.focused == PaneEditor || m.focused == PaneFiles
 }
 
 func (m Model) editorCursorStatus() string {
@@ -242,4 +261,17 @@ func max(a, b int) int {
 	}
 
 	return b
+}
+
+func (m *Model) toggleFilesPane() {
+	m.filesVisible = !m.filesVisible
+	if !m.filesVisible {
+		m.focused = PaneEditor
+		m.cursorVisible = true
+	} else {
+		m.focused = PaneFiles
+		m.cursorVisible = true
+	}
+
+	m.status = fmt.Sprintf("files pane visible: %t", m.filesVisible)
 }

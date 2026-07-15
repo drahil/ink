@@ -28,14 +28,19 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 	b.WriteString("search: ")
 	b.WriteString(f.Cursor.RenderLine(f.SearchQuery, focused && cursorVisible))
 	b.WriteString("\n\n")
-	for index, item := range f.visibleItems() {
+
+	itemWidth := width - 8
+	items := f.visibleItems()
+	start, end := f.visibleItemRange(items, height)
+	for index := start; index < end; index++ {
+		item := items[index]
 		if index == f.Selected {
 			b.WriteString("> ")
 		} else {
 			b.WriteString("  ")
 		}
 
-		b.WriteString(item)
+		b.WriteString(truncateRunes(item, itemWidth))
 		b.WriteString("\n")
 	}
 	return RenderPane(width, height, b.String(), focused)
@@ -106,6 +111,29 @@ func (f FilesPane) SelectedItem() string {
 	}
 
 	return items[f.Selected]
+}
+
+func (f FilesPane) visibleItemRange(items []string, height int) (int, int) {
+	visibleHeight := height - 6
+	if visibleHeight < 1 {
+		visibleHeight = 1
+	}
+
+	start := f.Selected - visibleHeight/2
+	if start < 0 {
+		start = 0
+	}
+
+	end := start + visibleHeight
+	if end > len(items) {
+		end = len(items)
+		start = end - visibleHeight
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	return start, end
 }
 
 func (f *FilesPane) MoveSelectionUp() {

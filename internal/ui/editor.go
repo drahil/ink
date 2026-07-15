@@ -31,7 +31,9 @@ func NewEditorPane() EditorPane {
 func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) string {
 	var b strings.Builder
 
-	b.WriteString(PaneTitle("editor", focused))
+	contentWidth := max(1, width-6)
+
+	b.WriteString(e.title(focused, contentWidth))
 	b.WriteString("\n\n")
 	fmt.Fprintf(&b, "cursor row: %d\n", e.Cursor.Row)
 	fmt.Fprintf(&b, "cursor col: %d\n\n", e.Cursor.Column)
@@ -41,10 +43,22 @@ func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) st
 	for row := start; row < end; row++ {
 		line := lines[row]
 		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
-		fmt.Fprintf(&b, "%s\n", e.Cursor.RenderLine(line, lineCursorVisible))
+		fmt.Fprintf(&b, "%s\n", e.renderVisibleLine(line, contentWidth, lineCursorVisible))
 	}
 
 	return RenderPane(width, height, b.String(), focused)
+}
+
+func (e EditorPane) title(focused bool, width int) string {
+	if e.Path == "" {
+		return PaneTitle("editor", focused)
+	}
+
+	if focused {
+		return truncateRunes(fmt.Sprintf("[ %s * ]", e.Path), width)
+	}
+
+	return truncateRunes(fmt.Sprintf("[ %s ]", e.Path), width)
 }
 
 func (e *EditorPane) MoveCursorUp() {
@@ -125,6 +139,43 @@ func (e EditorPane) visibleLineRange(lines []string, height int) (int, int) {
 	}
 
 	return start, end
+}
+
+func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool) string {
+	if width <= 0 {
+		return ""
+	}
+
+	if !cursorVisible {
+		return truncateRunes(line, width)
+	}
+
+	runes := []rune(line)
+	column := e.Cursor.Column
+	if column < 0 {
+		column = 0
+	}
+
+	start := 0
+	if column >= width {
+		start = column - width + 1
+	}
+
+	if start > len(runes) {
+		start = len(runes)
+	}
+
+	end := start + width
+	if end > len(runes) {
+		end = len(runes)
+	}
+
+	segment := string(runes[start:end])
+	cursor := CursorPosition{
+		Column: column - start,
+	}
+
+	return cursor.RenderLine(segment, true)
 }
 
 func (e *EditorPane) InsertRune(r rune) {

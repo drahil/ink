@@ -42,8 +42,7 @@ func ListFiles(root string) ([]string, error) {
 }
 
 func ReadFile(root, path string) (string, error) {
-	// fullPath := root + "\\" + path
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(filepath.Join(root, path))
 
 	return string(content), err
 }
