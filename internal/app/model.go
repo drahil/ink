@@ -193,7 +193,7 @@ func (m Model) View() string {
 	statusHeight := lipgloss.Height(status)
 	commandHeight := 5
 	mainHeight := max(3, m.height-headerHeight-statusHeight-commandHeight)
-	filesWidth := min(28, max(18, m.width/4))
+	filesWidth := min(48, max(32, m.width/3))
 	editorWidth := max(20, m.width-filesWidth)
 
 	editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)

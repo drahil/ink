@@ -36,7 +36,10 @@ func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) st
 	fmt.Fprintf(&b, "cursor row: %d\n", e.Cursor.Row)
 	fmt.Fprintf(&b, "cursor col: %d\n\n", e.Cursor.Column)
 
-	for row, line := range e.lines() {
+	lines := e.lines()
+	start, end := e.visibleLineRange(lines, height)
+	for row := start; row < end; row++ {
+		line := lines[row]
 		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
 		fmt.Fprintf(&b, "%s\n", e.Cursor.RenderLine(line, lineCursorVisible))
 	}
@@ -99,6 +102,29 @@ func (e EditorPane) currentLineLength() int {
 	}
 
 	return len([]rune(lines[e.Cursor.Row]))
+}
+
+func (e EditorPane) visibleLineRange(lines []string, height int) (int, int) {
+	visibleHeight := height - 7
+	if visibleHeight < 1 {
+		visibleHeight = 1
+	}
+
+	start := e.Cursor.Row - visibleHeight/2
+	if start < 0 {
+		start = 0
+	}
+
+	end := start + visibleHeight
+	if end > len(lines) {
+		end = len(lines)
+		start = end - visibleHeight
+		if start < 0 {
+			start = 0
+		}
+	}
+
+	return start, end
 }
 
 func (e *EditorPane) InsertRune(r rune) {
