@@ -10,6 +10,7 @@ import (
 type EditorPane struct {
 	Content string
 	Cursor  CursorPosition
+	Path    string
 }
 
 var cursorStyle = lipgloss.NewStyle().
@@ -23,6 +24,7 @@ func NewEditorPane() EditorPane {
 			Row:    0,
 			Column: 0,
 		},
+		Path: "",
 	}
 }
 
@@ -161,4 +163,13 @@ func (e *EditorPane) InsertNewline() {
 	lines = nextLines
 	e.Content = strings.Join(lines, "\n")
 	e.MoveCursorToNextLine()
+}
+
+func (e *EditorPane) OpenContent(path, content string) {
+	e.Content = content
+	e.Path = path
+	e.Cursor = CursorPosition{
+		Row:    0,
+		Column: 0,
+	}
 }

@@ -9,14 +9,13 @@ type FilesPane struct {
 	Selected    int
 }
 
-func NewFilesPane() FilesPane {
+func NewFilesPane(items []string) FilesPane {
+	if len(items) == 0 {
+		items = []string{"go.mod", "cmd/", "internal/"}
+	}
+
 	return FilesPane{
-		Items: []string{
-			"project root",
-			"cmd/",
-			"internal/",
-			"go.mod",
-		},
+		Items: items,
 	}
 }
 
@@ -98,6 +97,15 @@ func (f FilesPane) visibleItems() []string {
 	}
 
 	return visibleItems
+}
+
+func (f FilesPane) SelectedItem() string {
+	items := f.visibleItems()
+	if len(items) == 0 {
+		return ""
+	}
+
+	return items[f.Selected]
 }
 
 func (f *FilesPane) MoveSelectionUp() {

@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/drahil/ink/internal/project"
 	"github.com/drahil/ink/internal/ui"
 )
 
@@ -34,11 +35,17 @@ type Model struct {
 }
 
 func NewModel() Model {
+	items, err := project.ListFiles(".")
+	status := "ready"
+	if err != nil {
+		status = "could not load project files"
+	}
+
 	return Model{
 		focused:       PaneEditor,
-		status:        "ready",
+		status:        status,
 		cursorVisible: true,
-		files:         ui.NewFilesPane(),
+		files:         ui.NewFilesPane(items),
 		editor:        ui.NewEditorPane(),
 		command:       ui.NewCommandPane(),
 	}
@@ -140,6 +147,24 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 		m.files.MoveSelectionUp()
 	case "down":
 		m.files.MoveSelectionDown()
+	case "enter":
+		item := m.files.SelectedItem()
+		if item == "" {
+			m.status = "no file selected"
+			return
+		}
+
+		content, err := project.ReadFile(".", item)
+		if err != nil {
+			m.status = "could not open: " + item
+			return
+		}
+
+		m.editor.OpenContent(item, content)
+		m.focused = PaneEditor
+		m.cursorVisible = true
+		m.status = "opened: " + item
+		return
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())
