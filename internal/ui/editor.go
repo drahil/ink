@@ -31,19 +31,20 @@ func NewEditorPane() EditorPane {
 func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) string {
 	var b strings.Builder
 
-	contentWidth := max(1, width-6)
+	lines := e.lines()
+	gutterWidth := len(fmt.Sprintf("%d", len(lines))) + 2
+	contentWidth := max(1, width-6-gutterWidth)
 
 	b.WriteString(e.title(focused, contentWidth))
 	b.WriteString("\n\n")
 	fmt.Fprintf(&b, "cursor row: %d\n", e.Cursor.Row)
 	fmt.Fprintf(&b, "cursor col: %d\n\n", e.Cursor.Column)
 
-	lines := e.lines()
 	start, end := e.visibleLineRange(lines, height)
 	for row := start; row < end; row++ {
 		line := lines[row]
 		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
-		fmt.Fprintf(&b, "%s\n", e.renderVisibleLine(line, contentWidth, lineCursorVisible))
+		fmt.Fprintf(&b, "%*d  %s\n", gutterWidth-2, row+1, e.renderVisibleLine(line, contentWidth, lineCursorVisible))
 	}
 
 	return RenderPane(width, height, b.String(), focused)
