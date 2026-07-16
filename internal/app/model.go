@@ -21,6 +21,15 @@ const (
 
 type cursorBlinkMsg time.Time
 
+type autosaveMsg struct {
+	version int
+}
+
+type saveCompleteMsg struct {
+	version int
+	err     error
+}
+
 const cursorBlinkInterval = 500 * time.Millisecond
 const minEditorWidth = 20
 const minFilesWidth = 32
@@ -35,6 +44,7 @@ type Model struct {
 	editor        ui.EditorPane
 	command       ui.CommandPane
 	filesVisible  bool
+	saveVersion   int
 }
 
 func NewModel() Model {
@@ -89,6 +99,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, blinkCursor()
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case autosaveMsg:
+		if msg.version != m.saveVersion {
+			return m, nil
+		}
+
+		path := m.editor.Path
+		content := m.editor.Content
+		if path == "" {
+			return m, nil
+		}
+
+		return m, func() tea.Msg {
+			err := project.WriteFile(".", path, content)
+			return saveCompleteMsg{version: msg.version, err: err}
+		}
+	case saveCompleteMsg:
+		if msg.version != m.saveVersion {
+			return m, nil
+		}
+
+		if msg.err != nil {
+			m.status = "save failed: " + msg.err.Error()
+			return m, nil
+		}
+
+		return m, nil
 	}
 
 	return m, nil
@@ -110,7 +146,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch m.focused {
 	case PaneEditor:
-		m.handleEditorKey(msg)
+		return m, m.handleEditorKey(msg)
 	case PaneFiles:
 		m.handleFilesKey(msg)
 	case PaneCommand:
@@ -120,7 +156,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) handleEditorKey(msg tea.KeyMsg) {
+func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
+	before := m.editor.Content
+
 	switch msg.String() {
 	case "up":
 		m.editor.MoveCursorUp()
@@ -137,7 +175,7 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) {
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())
-			return
+			return nil
 		}
 
 		m.editor.InsertRune(msg.Runes[0])
@@ -145,6 +183,19 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) {
 
 	m.cursorVisible = true
 	m.status = m.editorCursorStatus()
+
+	if before == m.editor.Content || m.editor.Path == "" {
+		return nil
+	}
+
+	m.saveVersion++
+	return autosave(m.saveVersion)
+}
+
+func autosave(version int) tea.Cmd {
+	return tea.Tick(300*time.Millisecond, func(time.Time) tea.Msg {
+		return autosaveMsg{version: version}
+	})
 }
 
 func (m *Model) handleFilesKey(msg tea.KeyMsg) {
@@ -171,9 +222,10 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 		}
 
 		m.editor.OpenContent(item, content)
+		m.saveVersion = 0
 		m.focused = PaneEditor
 		m.cursorVisible = true
-		m.status = "opened: " + item
+		m.status = m.editorCursorStatus()
 		return
 	default:
 		if len(msg.Runes) == 0 {
@@ -183,8 +235,6 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 
 		m.files.Query(msg.Runes[0])
 	}
-
-	m.status = "files search: " + m.files.SearchQuery
 }
 
 func (m *Model) handleCommandKey(msg tea.KeyMsg) {
@@ -273,7 +323,6 @@ func (m *Model) focusNextPane() {
 		}
 	}
 
-	m.status = fmt.Sprintf("focused %s pane", m.focused)
 	m.cursorVisible = m.focused == PaneEditor || m.focused == PaneFiles
 }
 
@@ -315,6 +364,4 @@ func (m *Model) toggleFilesPane() {
 		m.focused = PaneEditor
 		m.cursorVisible = true
 	}
-
-	m.status = fmt.Sprintf("files pane visible: %t", m.filesVisible)
 }

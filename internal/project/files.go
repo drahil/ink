@@ -46,3 +46,7 @@ func ReadFile(root, path string) (string, error) {
 
 	return string(content), err
 }
+
+func WriteFile(root, path, content string) error {
+	return os.WriteFile(filepath.Join(root, path), []byte(content), 0644)
+}
