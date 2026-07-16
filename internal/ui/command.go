@@ -13,11 +13,18 @@ func NewCommandPane() CommandPane {
 }
 
 func (c CommandPane) View(width, height int, focused bool) string {
-	var b strings.Builder
+	innerWidth, innerHeight := PaneInnerSize(width, height, focused)
+	renderedLines := make([]string, 0, innerHeight)
 
-	b.WriteString(PaneTitle("command", focused))
-	b.WriteString("\n\n")
-	b.WriteString(c.Text)
+	if innerHeight >= 1 {
+		renderedLines = append(renderedLines, truncateCells(PaneTitle("command", focused), innerWidth))
+	}
+	if innerHeight >= 2 {
+		renderedLines = append(renderedLines, "")
+	}
+	if innerHeight >= 3 {
+		renderedLines = append(renderedLines, truncateCells(c.Text, innerWidth))
+	}
 
-	return RenderPane(width, height, b.String(), focused)
+	return RenderPane(width, height, strings.Join(renderedLines, "\n"), focused)
 }

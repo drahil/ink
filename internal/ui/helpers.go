@@ -2,8 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 var (
@@ -32,19 +34,34 @@ type CursorPosition struct {
 }
 
 func RenderHeader(width int) string {
-	text := fmt.Sprintf("ink == nulla dies sine linea")
+	const text = "ink == nulla dies sine linea"
+	frameWidth := headerStyle.GetHorizontalFrameSize()
+	if width <= 0 {
+		return ""
+	}
+	if width < frameWidth {
+		return blankBlock(width, 1)
+	}
 
 	return headerStyle.
-		Width(max(0, width-2)).
-		Render(text)
+		Width(max(0, width-frameWidth)).
+		Render(truncateCells(text, max(0, width-frameWidth)))
 }
 
 func RenderStatusBar(width int, status string) string {
 	text := fmt.Sprintf("status: %s | keys: tab focus | alt+1 files | q quit | ctrl+c quit", status)
-	text = truncateRunes(text, max(0, width-2))
+	frameWidth := statusStyle.GetHorizontalFrameSize()
+	if width <= 0 {
+		return ""
+	}
+	if width < frameWidth {
+		return blankBlock(width, 1)
+	}
+
+	text = truncateCells(text, max(0, width-frameWidth))
 
 	return statusStyle.
-		Width(max(0, width-2)).
+		Width(max(0, width-frameWidth)).
 		Render(text)
 }
 
@@ -57,15 +74,69 @@ func PaneTitle(name string, active bool) string {
 }
 
 func RenderPane(width, height int, content string, focused bool) string {
-	style := paneStyle
-	if focused {
-		style = focusedPaneStyle
+	style := paneRenderStyle(focused)
+	frameWidth, frameHeight := style.GetFrameSize()
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+	if width < frameWidth || height < frameHeight {
+		return blankBlock(width, height)
 	}
 
-	return style.
-		Width(max(0, width-4)).
-		Height(max(0, height-2)).
-		Render(content)
+	innerWidth, innerHeight := max(0, width-frameWidth), max(0, height-frameHeight)
+	content = fitBlock(content, innerWidth, innerHeight)
+
+	return style.Render(content)
+}
+
+func PaneInnerSize(width, height int, focused bool) (int, int) {
+	return paneInnerSize(paneRenderStyle(focused), width, height)
+}
+
+func paneRenderStyle(focused bool) lipgloss.Style {
+	if focused {
+		return focusedPaneStyle
+	}
+
+	return paneStyle
+}
+
+func paneInnerSize(style lipgloss.Style, width, height int) (int, int) {
+	frameWidth, frameHeight := style.GetFrameSize()
+	return max(0, width-frameWidth), max(0, height-frameHeight)
+}
+
+func blankBlock(width, height int) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+
+	lines := make([]string, height)
+	for i := range lines {
+		lines[i] = strings.Repeat(" ", width)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func fitBlock(content string, width, height int) string {
+	if width <= 0 || height <= 0 {
+		return ""
+	}
+
+	sourceLines := strings.Split(content, "\n")
+	lines := make([]string, height)
+	for i := range lines {
+		if i >= len(sourceLines) {
+			lines[i] = strings.Repeat(" ", width)
+			continue
+		}
+
+		line := truncateCells(sourceLines[i], width)
+		lines[i] = line + strings.Repeat(" ", max(0, width-lipgloss.Width(line)))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func max(a, b int) int {
@@ -76,44 +147,57 @@ func max(a, b int) int {
 	return b
 }
 
-func truncateRunes(value string, maxLength int) string {
-	runes := []rune(value)
-	if len(runes) <= maxLength {
-		return value
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
 
-	if maxLength <= 0 {
+	return b
+}
+
+func truncateCells(value string, maxWidth int) string {
+	return truncateCellsWithTail(value, maxWidth, "")
+}
+
+func truncateCellsWithTail(value string, maxWidth int, tail string) string {
+	if maxWidth <= 0 {
 		return ""
 	}
 
-	if maxLength <= 3 {
-		return string(runes[:maxLength])
-	}
-
-	return string(runes[:maxLength-3]) + "..."
+	return ansi.Truncate(value, maxWidth, tail)
 }
 
-func (c CursorPosition) RenderLine(line string, cursorVisible bool) string {
-	if !cursorVisible {
-		return line
+func (c CursorPosition) RenderLineWithin(line string, width int, cursorVisible bool) string {
+	if width <= 0 {
+		return ""
 	}
 
-	runes := []rune(line)
-	column := c.Column
+	if !cursorVisible {
+		return truncateCells(line, width)
+	}
 
+	column := c.Column
 	if column < 0 {
 		column = 0
 	}
 
-	if column >= len(runes) {
-		return string(runes) + cursorStyle.Render(" ")
+	start := 0
+	if column >= width {
+		start = column - width + 1
 	}
 
-	before := string(runes[:column])
-	cursor := cursorStyle.Render(string(runes[column]))
-	after := string(runes[column+1:])
+	segment := ansi.Cut(line, start, start+width)
+	cursorColumn := column - start
+	before := ansi.Cut(segment, 0, cursorColumn)
+	cursorText := ansi.Cut(segment, cursorColumn, cursorColumn+1)
+	afterStart := cursorColumn + lipgloss.Width(cursorText)
+	after := ansi.Cut(segment, afterStart, width)
 
-	return before + cursor + after
+	if cursorText == "" {
+		cursorText = " "
+	}
+
+	return truncateCells(before+cursorStyle.Render(cursorText)+after, width)
 }
 
 func (c *CursorPosition) ClampCursorColumn(lineLength int) {

@@ -22,6 +22,8 @@ const (
 type cursorBlinkMsg time.Time
 
 const cursorBlinkInterval = 500 * time.Millisecond
+const minEditorWidth = 20
+const minFilesWidth = 32
 
 type Model struct {
 	width         int
@@ -75,6 +77,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.normalizeFocus()
 		m.status = fmt.Sprintf("terminal resized to %dx%d", m.width, m.height)
 	case cursorBlinkMsg:
 		if m.focused == PaneEditor || m.focused == PaneFiles {
@@ -92,6 +95,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.normalizeFocus()
+
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -196,27 +201,62 @@ func (m Model) View() string {
 
 	headerHeight := lipgloss.Height(header)
 	statusHeight := lipgloss.Height(status)
-	commandHeight := 5
-	mainHeight := max(3, m.height-headerHeight-statusHeight-commandHeight-2)
+	includeHeader := m.height >= headerHeight
+	includeStatus := m.height >= headerHeight+statusHeight
 
-	main := m.renderMain(mainHeight)
-	command := m.command.View(m.width, commandHeight, m.focused == PaneCommand)
+	fixedHeight := 0
+	if includeHeader {
+		fixedHeight += headerHeight
+	}
+	if includeStatus {
+		fixedHeight += statusHeight
+	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, header, main, command, status)
+	remainingHeight := max(0, m.height-fixedHeight)
+	commandHeight := min(5, max(0, remainingHeight-3))
+	mainHeight := max(0, remainingHeight-commandHeight)
+
+	sections := make([]string, 0, 4)
+	if includeHeader {
+		sections = append(sections, header)
+	}
+	if mainHeight > 0 {
+		sections = append(sections, m.renderMain(mainHeight))
+	}
+	if commandHeight > 0 {
+		sections = append(sections, m.command.View(m.width, commandHeight, m.focused == PaneCommand))
+	}
+	if includeStatus {
+		sections = append(sections, status)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 
 func (m Model) renderMain(mainHeight int) string {
-	if m.filesVisible {
-		filesWidth := min(48, max(32, m.width/3))
-		editorWidth := max(20, m.width-filesWidth)
+	if m.filesPaneAvailable() {
+		filesWidth := min(48, max(minFilesWidth, m.width/3))
+		filesWidth = min(filesWidth, m.width-minEditorWidth)
+		editorWidth := max(0, m.width-filesWidth)
 		editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
 		filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible)
 
 		return lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
 	}
 
-	editorWidth := max(20, m.width)
+	editorWidth := max(0, m.width)
 	return m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
+}
+
+func (m Model) filesPaneAvailable() bool {
+	return m.filesVisible && m.width >= minEditorWidth+minFilesWidth
+}
+
+func (m *Model) normalizeFocus() {
+	if m.focused == PaneFiles && !m.filesPaneAvailable() {
+		m.focused = PaneEditor
+		m.cursorVisible = true
+	}
 }
 
 func (m *Model) focusNextPane() {
@@ -226,7 +266,7 @@ func (m *Model) focusNextPane() {
 	case PaneEditor:
 		m.focused = PaneCommand
 	case PaneCommand:
-		if m.filesVisible {
+		if m.filesPaneAvailable() {
 			m.focused = PaneFiles
 		} else {
 			m.focused = PaneEditor
@@ -268,8 +308,11 @@ func (m *Model) toggleFilesPane() {
 	if !m.filesVisible {
 		m.focused = PaneEditor
 		m.cursorVisible = true
-	} else {
+	} else if m.filesPaneAvailable() {
 		m.focused = PaneFiles
+		m.cursorVisible = true
+	} else {
+		m.focused = PaneEditor
 		m.cursorVisible = true
 	}
 

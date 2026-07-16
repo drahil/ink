@@ -1,6 +1,10 @@
 package ui
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 type FilesPane struct {
 	Items       []string
@@ -20,30 +24,41 @@ func NewFilesPane(items []string) FilesPane {
 }
 
 func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
-	var b strings.Builder
+	innerWidth, innerHeight := PaneInnerSize(width, height, focused)
+	renderedLines := make([]string, 0, innerHeight)
 
-	b.WriteString(PaneTitle("files", focused))
-	b.WriteString("\n\n")
+	if innerHeight >= 1 {
+		renderedLines = append(renderedLines, truncateCells(PaneTitle("files", focused), innerWidth))
+	}
+	if innerHeight >= 2 {
+		renderedLines = append(renderedLines, "")
+	}
 
-	b.WriteString("search: ")
-	b.WriteString(f.Cursor.RenderLine(f.SearchQuery, focused && cursorVisible))
-	b.WriteString("\n\n")
+	if innerHeight >= 3 {
+		searchPrefix := "search: "
+		searchWidth := max(0, innerWidth-lipgloss.Width(searchPrefix))
+		searchLine := searchPrefix + f.Cursor.RenderLineWithin(f.SearchQuery, searchWidth, focused && cursorVisible)
+		renderedLines = append(renderedLines, truncateCells(searchLine, innerWidth))
+	}
+	if innerHeight >= 4 {
+		renderedLines = append(renderedLines, "")
+	}
 
-	itemWidth := width - 8
+	itemWidth := max(0, innerWidth-2)
 	items := f.visibleItems()
-	start, end := f.visibleItemRange(items, height)
+	visibleHeight := max(0, innerHeight-len(renderedLines))
+	start, end := f.visibleItemRange(items, visibleHeight)
 	for index := start; index < end; index++ {
 		item := items[index]
+		prefix := "  "
 		if index == f.Selected {
-			b.WriteString("> ")
-		} else {
-			b.WriteString("  ")
+			prefix = "> "
 		}
 
-		b.WriteString(truncateRunes(item, itemWidth))
-		b.WriteString("\n")
+		renderedLines = append(renderedLines, truncateCells(prefix+truncateCells(item, itemWidth), innerWidth))
 	}
-	return RenderPane(width, height, b.String(), focused)
+
+	return RenderPane(width, height, strings.Join(renderedLines, "\n"), focused)
 }
 
 func (f *FilesPane) Query(r rune) {
@@ -113,12 +128,10 @@ func (f FilesPane) SelectedItem() string {
 	return items[f.Selected]
 }
 
-func (f FilesPane) visibleItemRange(items []string, height int) (int, int) {
-	visibleHeight := height - 6
-	if visibleHeight < 1 {
-		visibleHeight = 1
+func (f FilesPane) visibleItemRange(items []string, visibleHeight int) (int, int) {
+	if visibleHeight <= 0 {
+		return 0, 0
 	}
-
 	start := f.Selected - visibleHeight/2
 	if start < 0 {
 		start = 0

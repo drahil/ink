@@ -1,10 +1,16 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
+	"github.com/alecthomas/chroma"
+	"github.com/alecthomas/chroma/formatters"
+	"github.com/alecthomas/chroma/lexers"
+	"github.com/alecthomas/chroma/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type EditorPane struct {
@@ -12,6 +18,8 @@ type EditorPane struct {
 	Cursor  CursorPosition
 	Path    string
 }
+
+type lineHighlighter func(string) string
 
 var cursorStyle = lipgloss.NewStyle().
 	Background(lipgloss.Color("15")).
@@ -29,25 +37,32 @@ func NewEditorPane() EditorPane {
 }
 
 func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) string {
-	var b strings.Builder
-
 	lines := e.lines()
-	gutterWidth := len(fmt.Sprintf("%d", len(lines))) + 2
-	contentWidth := max(1, width-6-gutterWidth)
+	innerWidth, innerHeight := PaneInnerSize(width, height, focused)
+	gutterDigits := len(fmt.Sprintf("%d", len(lines)))
+	gutterWidth := gutterDigits + 2
+	contentWidth := max(0, innerWidth-gutterWidth)
+	highlight := e.lineHighlighter()
+	renderedLines := make([]string, 0, innerHeight)
 
-	b.WriteString(e.title(focused, contentWidth))
-	b.WriteString("\n\n")
-	fmt.Fprintf(&b, "cursor row: %d\n", e.Cursor.Row)
-	fmt.Fprintf(&b, "cursor col: %d\n\n", e.Cursor.Column)
+	if innerHeight >= 1 {
+		renderedLines = append(renderedLines, e.title(focused, innerWidth))
+	}
+	if innerHeight >= 2 {
+		renderedLines = append(renderedLines, "")
+	}
 
-	start, end := e.visibleLineRange(lines, height)
+	visibleHeight := max(0, innerHeight-len(renderedLines))
+	start, end := e.visibleLineRange(lines, visibleHeight)
 	for row := start; row < end; row++ {
 		line := lines[row]
 		lineCursorVisible := focused && cursorVisible && row == e.Cursor.Row
-		fmt.Fprintf(&b, "%*d  %s\n", gutterWidth-2, row+1, e.renderVisibleLine(line, contentWidth, lineCursorVisible))
+		prefix := fmt.Sprintf("%*d  ", gutterDigits, row+1)
+		renderedLine := prefix + e.renderVisibleLine(line, contentWidth, lineCursorVisible, highlight)
+		renderedLines = append(renderedLines, truncateCells(renderedLine, innerWidth))
 	}
 
-	return RenderPane(width, height, b.String(), focused)
+	return RenderPane(width, height, strings.Join(renderedLines, "\n"), focused)
 }
 
 func (e EditorPane) title(focused bool, width int) string {
@@ -56,10 +71,10 @@ func (e EditorPane) title(focused bool, width int) string {
 	}
 
 	if focused {
-		return truncateRunes(fmt.Sprintf("[ %s * ]", e.Path), width)
+		return truncateCellsWithTail(fmt.Sprintf("[ %s * ]", e.Path), width, "...")
 	}
 
-	return truncateRunes(fmt.Sprintf("[ %s ]", e.Path), width)
+	return truncateCellsWithTail(fmt.Sprintf("[ %s ]", e.Path), width, "...")
 }
 
 func (e *EditorPane) MoveCursorUp() {
@@ -119,12 +134,10 @@ func (e EditorPane) currentLineLength() int {
 	return len([]rune(lines[e.Cursor.Row]))
 }
 
-func (e EditorPane) visibleLineRange(lines []string, height int) (int, int) {
-	visibleHeight := height - 7
-	if visibleHeight < 1 {
-		visibleHeight = 1
+func (e EditorPane) visibleLineRange(lines []string, visibleHeight int) (int, int) {
+	if visibleHeight <= 0 {
+		return 0, 0
 	}
-
 	start := e.Cursor.Row - visibleHeight/2
 	if start < 0 {
 		start = 0
@@ -142,17 +155,17 @@ func (e EditorPane) visibleLineRange(lines []string, height int) (int, int) {
 	return start, end
 }
 
-func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool) string {
+func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool, highlight lineHighlighter) string {
 	if width <= 0 {
 		return ""
 	}
 
+	line, column := expandTabs(line, e.Cursor.Column)
+
 	if !cursorVisible {
-		return truncateRunes(line, width)
+		return truncateCells(highlight(truncateCells(line, width)), width)
 	}
 
-	runes := []rune(line)
-	column := e.Cursor.Column
 	if column < 0 {
 		column = 0
 	}
@@ -162,21 +175,89 @@ func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool
 		start = column - width + 1
 	}
 
-	if start > len(runes) {
-		start = len(runes)
+	segment := ansi.Cut(line, start, start+width)
+	cursorColumn := column - start
+
+	if cursorColumn < 0 {
+		cursorColumn = 0
 	}
 
-	end := start + width
-	if end > len(runes) {
-		end = len(runes)
+	before := ansi.Cut(segment, 0, cursorColumn)
+	cursor := ansi.Cut(segment, cursorColumn, cursorColumn+1)
+	afterStart := cursorColumn + lipgloss.Width(cursor)
+	after := ansi.Cut(segment, afterStart, width)
+
+	if cursor == "" {
+		cursor = " "
 	}
 
-	segment := string(runes[start:end])
-	cursor := CursorPosition{
-		Column: column - start,
+	rendered := highlight(before) + cursorStyle.Render(cursor) + highlight(after)
+	return truncateCells(rendered, width)
+}
+
+func expandTabs(line string, cursorColumn int) (string, int) {
+	var b strings.Builder
+	expandedColumn := cursorColumn
+	visualColumn := 0
+	sourceColumn := 0
+
+	for _, r := range line {
+		if r == '\t' {
+			spaces := 4 - visualColumn%4
+			b.WriteString(strings.Repeat(" ", spaces))
+			if sourceColumn < cursorColumn {
+				expandedColumn += spaces - 1
+			}
+			visualColumn += spaces
+			sourceColumn++
+			continue
+		}
+
+		b.WriteRune(r)
+		visualColumn++
+		sourceColumn++
 	}
 
-	return cursor.RenderLine(segment, true)
+	return b.String(), expandedColumn
+}
+
+func (e EditorPane) lineHighlighter() lineHighlighter {
+	lexer := lexers.Match(e.Path)
+	if lexer == nil {
+		lexer = lexers.Analyse(e.Content)
+	}
+	if lexer == nil {
+		lexer = lexers.Fallback
+	}
+	lexer = chroma.Coalesce(lexer)
+
+	formatter := formatters.Get("terminal16m")
+	if formatter == nil {
+		formatter = formatters.Fallback
+	}
+
+	style := styles.Get("monokai")
+	if style == nil {
+		style = styles.Fallback
+	}
+
+	return func(line string) string {
+		if line == "" {
+			return ""
+		}
+
+		iterator, err := lexer.Tokenise(nil, line)
+		if err != nil {
+			return line
+		}
+
+		var b bytes.Buffer
+		if err := formatter.Format(&b, style, iterator); err != nil {
+			return line
+		}
+
+		return strings.TrimRight(b.String(), "\n")
+	}
 }
 
 func (e *EditorPane) InsertRune(r rune) {
