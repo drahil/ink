@@ -16,7 +16,6 @@ type Pane int
 const (
 	PaneFiles Pane = iota
 	PaneEditor
-	PaneCommand
 )
 
 type cursorBlinkMsg time.Time
@@ -42,7 +41,6 @@ type Model struct {
 	cursorVisible bool
 	files         ui.FilesPane
 	editor        ui.EditorPane
-	command       ui.CommandPane
 	filesVisible  bool
 	saveVersion   int
 }
@@ -60,7 +58,6 @@ func NewModel() Model {
 		cursorVisible: true,
 		files:         ui.NewFilesPane(items),
 		editor:        ui.NewEditorPane(),
-		command:       ui.NewCommandPane(),
 		filesVisible:  true,
 	}
 }
@@ -71,8 +68,6 @@ func (p Pane) String() string {
 		return "files"
 	case PaneEditor:
 		return "editor"
-	case PaneCommand:
-		return "command"
 	default:
 		return "unknown"
 	}
@@ -149,8 +144,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.handleEditorKey(msg)
 	case PaneFiles:
 		m.handleFilesKey(msg)
-	case PaneCommand:
-		m.handleCommandKey(msg)
 	}
 
 	return m, nil
@@ -237,10 +230,6 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 	}
 }
 
-func (m *Model) handleCommandKey(msg tea.KeyMsg) {
-	m.status = fmt.Sprintf("command pressed %q", msg.String())
-}
-
 func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "starting..."
@@ -263,18 +252,14 @@ func (m Model) View() string {
 	}
 
 	remainingHeight := max(0, m.height-fixedHeight)
-	commandHeight := min(5, max(0, remainingHeight-3))
-	mainHeight := max(0, remainingHeight-commandHeight)
+	mainHeight := remainingHeight
 
-	sections := make([]string, 0, 4)
+	sections := make([]string, 0, 3)
 	if includeHeader {
 		sections = append(sections, header)
 	}
 	if mainHeight > 0 {
 		sections = append(sections, m.renderMain(mainHeight))
-	}
-	if commandHeight > 0 {
-		sections = append(sections, m.command.View(m.width, commandHeight, m.focused == PaneCommand))
 	}
 	if includeStatus {
 		sections = append(sections, status)
@@ -314,8 +299,6 @@ func (m *Model) focusNextPane() {
 	case PaneFiles:
 		m.focused = PaneEditor
 	case PaneEditor:
-		m.focused = PaneCommand
-	case PaneCommand:
 		if m.filesPaneAvailable() {
 			m.focused = PaneFiles
 		} else {
