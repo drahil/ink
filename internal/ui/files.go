@@ -7,10 +7,9 @@ import (
 )
 
 type FilesPane struct {
-	Items       []string
-	SearchQuery string
-	Cursor      CursorPosition
-	Selected    int
+	Items    []string
+	Search   TextInput
+	Selected int
 }
 
 func NewFilesPane(items []string) FilesPane {
@@ -37,7 +36,7 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 	if innerHeight >= 3 {
 		searchPrefix := "search: "
 		searchWidth := max(0, innerWidth-lipgloss.Width(searchPrefix))
-		searchLine := searchPrefix + f.Cursor.RenderLineWithin(f.SearchQuery, searchWidth, focused && cursorVisible)
+		searchLine := searchPrefix + f.Search.RenderWithin(searchWidth, focused && cursorVisible)
 		renderedLines = append(renderedLines, truncateCells(searchLine, innerWidth))
 	}
 	if innerHeight >= 4 {
@@ -62,56 +61,29 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 }
 
 func (f *FilesPane) Query(r rune) {
-	f.SearchQuery = f.SearchQuery + string(r)
-	f.MoveCursorRight()
+	f.Search.InsertRune(r)
 	f.clampSelection()
 }
 
-func (f *FilesPane) MoveCursorRight() {
-	f.Cursor.Column++
-}
-
-func (f *FilesPane) MoveCursorLeft() {
-	if f.Cursor.Column > 0 {
-		f.Cursor.Column--
-	}
-}
-
-func (f *FilesPane) MoveCursorToBeginningOfLine() {
-	f.Cursor.Column = 0
-}
-
 func (f *FilesPane) Backspace() {
-	if f.Cursor.Column == 0 {
-		return
-	}
-
-	currentLine := []rune(f.SearchQuery)
-	before := currentLine[:f.Cursor.Column-1]
-	after := currentLine[f.Cursor.Column:]
-	nextLine := make([]rune, 0, len(currentLine)-1)
-	nextLine = append(nextLine, before...)
-	nextLine = append(nextLine, after...)
-	f.SearchQuery = string(nextLine)
-	f.MoveCursorLeft()
+	f.Search.Backspace()
 	f.clampSelection()
 }
 
 func (f *FilesPane) ClearSearch() {
-	f.SearchQuery = ""
-	f.MoveCursorToBeginningOfLine()
+	f.Search.Clear()
 	f.clampSelection()
 }
 
 func (f FilesPane) visibleItems() []string {
-	if f.SearchQuery == "" {
+	if f.Search.Value == "" {
 		return f.Items
 	}
 
 	visibleItems := make([]string, 0)
 
 	for _, item := range f.Items {
-		if strings.Contains(strings.ToLower(item), strings.ToLower(f.SearchQuery)) {
+		if strings.Contains(strings.ToLower(item), strings.ToLower(f.Search.Value)) {
 			visibleItems = append(visibleItems, item)
 		}
 	}
