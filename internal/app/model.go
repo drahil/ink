@@ -42,8 +42,6 @@ type Model struct {
 	files         ui.FilesPane
 	editor        ui.EditorPane
 	filesVisible  bool
-	searchMode    bool
-	search        ui.TextInput
 	saveVersion   int
 }
 
@@ -102,7 +100,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		path := m.editor.Path
-		content := m.editor.Buffer.Content
+		content := m.editor.Content
 		if path == "" {
 			return m, nil
 		}
@@ -130,28 +128,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.normalizeFocus()
 
-	if m.searchMode {
-		switch msg.String() {
-		case "esc":
-			m.clearSearch()
-			return m, nil
-		case "enter":
-			m.commitSearch()
-			return m, nil
-		case "backspace":
-			m.search.Backspace()
-		default:
-			if len(msg.Runes) == 0 {
-				return m, nil
-			}
-
-			m.search.InsertRune(msg.Runes[0])
-		}
-
-		m.status = m.search.Value
-		return m, nil
-	}
-
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -160,9 +136,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "alt+1", "cmd+1":
 		m.toggleFilesPane()
-		return m, nil
-	case "alt+f":
-		m.startSearch()
 		return m, nil
 	}
 
@@ -176,32 +149,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) startSearch() {
-	m.searchMode = true
-	m.search.Clear()
-}
-
-func (m *Model) clearSearch() {
-	m.searchMode = false
-	m.search.Clear()
-}
-
-func (m *Model) commitSearch() {
-	if m.search.Value == "" {
-		m.status = ""
-		return
-	}
-
-	if m.editor.MoveToFirstMatch(m.search.Value) {
-		m.status = m.search.Value
-		return
-	}
-
-	m.status = "no match: " + m.search.Value
-}
-
 func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
-	before := m.editor.Buffer.Content
+	before := m.editor.Content
 
 	switch msg.String() {
 	case "up":
@@ -228,7 +177,7 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	m.cursorVisible = true
 	m.status = m.editorCursorStatus()
 
-	if before == m.editor.Buffer.Content || m.editor.Path == "" {
+	if before == m.editor.Content || m.editor.Path == "" {
 		return nil
 	}
 
@@ -361,7 +310,7 @@ func (m *Model) focusNextPane() {
 }
 
 func (m Model) editorCursorStatus() string {
-	return fmt.Sprintf("row:%d --- column:%d", m.editor.Buffer.Cursor.Row, m.editor.Buffer.Cursor.Column)
+	return fmt.Sprintf("row:%d --- column:%d", m.editor.Cursor.Row, m.editor.Cursor.Column)
 }
 
 func blinkCursor() tea.Cmd {
