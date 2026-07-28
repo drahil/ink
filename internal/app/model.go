@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"time"
+    "time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

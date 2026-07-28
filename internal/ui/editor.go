@@ -162,10 +162,6 @@ func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool
 
 	line, column := expandTabs(line, e.Cursor.Column)
 
-	if !cursorVisible {
-		return truncateCells(highlight(truncateCells(line, width)), width)
-	}
-
 	if column < 0 {
 		column = 0
 	}
@@ -176,22 +172,28 @@ func (e EditorPane) renderVisibleLine(line string, width int, cursorVisible bool
 	}
 
 	segment := ansi.Cut(line, start, start+width)
+	highlightedSegment := highlight(segment)
+
+	if !cursorVisible {
+		return truncateCells(highlightedSegment, width)
+	}
+
 	cursorColumn := column - start
 
 	if cursorColumn < 0 {
 		cursorColumn = 0
 	}
 
-	before := ansi.Cut(segment, 0, cursorColumn)
+	before := ansi.Cut(highlightedSegment, 0, cursorColumn)
 	cursor := ansi.Cut(segment, cursorColumn, cursorColumn+1)
 	afterStart := cursorColumn + lipgloss.Width(cursor)
-	after := ansi.Cut(segment, afterStart, width)
+	after := ansi.Cut(highlightedSegment, afterStart, width)
 
 	if cursor == "" {
 		cursor = " "
 	}
 
-	rendered := highlight(before) + cursorStyle.Render(cursor) + highlight(after)
+	rendered := before + cursorStyle.Render(cursor) + after
 	return truncateCells(rendered, width)
 }
 
