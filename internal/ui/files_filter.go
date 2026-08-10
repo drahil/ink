@@ -44,15 +44,16 @@ func (f *FilesPane) ClearSearch() {
 	f.clampSelection()
 }
 
-func (f FilesPane) filteredItems() []string {
+func (f FilesPane) filteredItems() []FileRow {
+	rows := f.visibleRows()
 	if f.SearchQuery == "" {
-		return f.Items
+		return rows
 	}
 
-	visibleItems := make([]string, 0)
+	visibleItems := make([]FileRow, 0)
 	query := strings.ToLower(f.SearchQuery)
-	for _, item := range f.Items {
-		if strings.Contains(strings.ToLower(item), query) {
+	for _, item := range rows {
+		if strings.Contains(strings.ToLower(item.Path), query) {
 			visibleItems = append(visibleItems, item)
 		}
 	}
@@ -60,16 +61,74 @@ func (f FilesPane) filteredItems() []string {
 	return visibleItems
 }
 
-func (f FilesPane) SelectedItem() string {
-	items := f.filteredItems()
-	if len(items) == 0 {
+func (f FilesPane) visibleRows() []FileRow {
+	rows := make([]FileRow, 0, len(f.Items))
+	for _, row := range f.Items {
+		if f.rowVisible(row) {
+			rows = append(rows, row)
+		}
+	}
+
+	return rows
+}
+
+func (f FilesPane) rowVisible(row FileRow) bool {
+	parent := parentPath(row.Path)
+	for parent != "" {
+		if !f.dirExpanded(parent) {
+			return false
+		}
+
+		parent = parentPath(parent)
+	}
+
+	return true
+}
+
+func parentPath(filePath string) string {
+	index := strings.LastIndex(filePath, "/")
+	if index < 0 {
 		return ""
 	}
 
-	return items[f.Selected]
+	return filePath[:index]
 }
 
-func (f FilesPane) visibleItemRange(items []string, visibleHeight int) (int, int) {
+func (f FilesPane) dirExpanded(path string) bool {
+	if f.Expanded == nil {
+		return true
+	}
+
+	expanded, ok := f.Expanded[path]
+	if !ok {
+		return true
+	}
+
+	return expanded
+}
+
+func (f *FilesPane) ToggleExpanded(row FileRow) {
+	if !row.IsDir {
+		return
+	}
+	if f.Expanded == nil {
+		f.Expanded = make(map[string]bool)
+	}
+
+	f.Expanded[row.Path] = !f.dirExpanded(row.Path)
+	f.clampSelection()
+}
+
+func (f FilesPane) SelectedRow() (FileRow, bool) {
+	items := f.filteredItems()
+	if len(items) == 0 {
+		return FileRow{}, false
+	}
+
+	return items[f.Selected], true
+}
+
+func (f FilesPane) visibleItemRange(items []FileRow, visibleHeight int) (int, int) {
 	if visibleHeight <= 0 {
 		return 0, 0
 	}

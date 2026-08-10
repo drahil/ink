@@ -77,19 +77,24 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 	case "down":
 		m.files.MoveSelectionDown()
 	case "enter":
-		item := m.files.SelectedItem()
-		if item == "" {
+		row, ok := m.files.SelectedRow()
+		if !ok {
 			m.status = "no file selected"
 			return
 		}
-
-		content, err := m.project.ReadFile(item)
-		if err != nil {
-			m.status = "could not open: " + item
+		if row.IsDir {
+			m.files.ToggleExpanded(row)
+			m.status = "toggled directory: " + row.Path
 			return
 		}
 
-		m.editor.OpenContent(item, content)
+		content, err := m.project.ReadFile(row.Path)
+		if err != nil {
+			m.status = "could not open: " + row.Path
+			return
+		}
+
+		m.editor.OpenContent(row.Path, content)
 		m.saveVersion = 0
 		m.focused = PaneEditor
 		m.cursorVisible = true

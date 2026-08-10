@@ -38,7 +38,19 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 			prefix = "> "
 		}
 
-		renderedLines = append(renderedLines, truncateCells(prefix+truncateCells(item, itemWidth), innerWidth))
+		marker := "  "
+		name := item.Name
+		if item.IsDir {
+			if f.dirExpanded(item.Path) {
+				marker = "- "
+			} else {
+				marker = "+ "
+			}
+			name += "/"
+		}
+
+		label := strings.Repeat("  ", item.Depth) + marker + name
+		renderedLines = append(renderedLines, truncateCells(prefix+truncateCells(label, itemWidth), innerWidth))
 	}
 
 	return RenderPane(width, height, strings.Join(renderedLines, "\n"), focused)
