@@ -9,7 +9,14 @@ import (
 	"github.com/drahil/ink/internal/app"
 )
 
+var version = "dev"
+
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("ink %s\n", version)
+		return
+	}
+
 	model := app.NewModel()
 
 	program := tea.NewProgram(
