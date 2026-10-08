@@ -9,8 +9,18 @@ import (
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.normalizeFocus()
 
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+
+	// Search is a modal input: its keys must not trigger global shortcuts or
+	// mutate the document underneath it.
+	if m.focused == PaneEditor && m.editor.IsSearchActive {
+		return m, m.handleEditorKey(msg)
+	}
+
 	switch msg.String() {
-	case "ctrl+c", "q":
+	case "q":
 		return m, tea.Quit
 	case "tab":
 		m.focusNextPane()
@@ -31,6 +41,30 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
+	if m.editor.IsSearchActive {
+		switch msg.String() {
+		case "esc":
+			m.editor.CloseSearch()
+			m.status = m.editorCursorStatus()
+		case "enter", "ctrl+f":
+			if m.editor.Search() {
+				m.status = m.editorCursorStatus()
+			} else {
+				m.status = fmt.Sprintf("no matches for %q", m.editor.SearchQuery)
+			}
+		case "backspace":
+			m.editor.BackspaceInSearch()
+			m.status = "find: " + m.editor.SearchQuery
+		default:
+			for _, r := range msg.Runes {
+				m.editor.AddToSearchQuery(r)
+			}
+			m.status = "find: " + m.editor.SearchQuery
+		}
+		m.cursorVisible = true
+		return nil
+	}
+
 	before := m.editor.Content
 
 	switch msg.String() {
@@ -46,6 +80,9 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		m.editor.Backspace()
 	case "enter":
 		m.editor.InsertNewline()
+	case "ctrl+f":
+		m.editor.InitSearch()
+		m.status = "find: " + m.editor.SearchQuery
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -132,4 +133,62 @@ func (e *EditorPane) OpenContent(path, content string) {
 		Row:    0,
 		Column: 0,
 	}
+	e.IsSearchActive = false
+	e.SearchQuery = ""
+	e.searchMatchEnd = -1
+}
+
+func (e *EditorPane) InitSearch() {
+	e.IsSearchActive = true
+	e.searchMatchEnd = -1
+}
+
+func (e *EditorPane) AddToSearchQuery(r rune) {
+	e.SearchQuery += string(r)
+	e.searchMatchEnd = -1
+}
+
+func (e *EditorPane) BackspaceInSearch() {
+	query := []rune(e.SearchQuery)
+	if len(query) == 0 {
+		return
+	}
+
+	e.SearchQuery = string(query[:len(query)-1])
+	e.searchMatchEnd = -1
+}
+
+func (e *EditorPane) CloseSearch() {
+	e.IsSearchActive = false
+	e.searchMatchEnd = -1
+}
+
+func (e *EditorPane) Search() bool {
+	if e.SearchQuery == "" {
+		return false
+	}
+
+	pattern := regexp.MustCompile("(?i)" + regexp.QuoteMeta(e.SearchQuery))
+	matches := pattern.FindAllStringIndex(e.Content, -1)
+	if len(matches) == 0 {
+		e.searchMatchEnd = -1
+		return false
+	}
+
+	match := matches[0]
+	for _, candidate := range matches {
+		if candidate[0] >= e.searchMatchEnd {
+			match = candidate
+			break
+		}
+	}
+
+	e.searchMatchEnd = match[1]
+	before := e.Content[:match[0]]
+	e.Cursor.Row = strings.Count(before, "\n")
+	if lastNewline := strings.LastIndex(before, "\n"); lastNewline >= 0 {
+		before = before[lastNewline+1:]
+	}
+	e.Cursor.Column = len([]rune(before))
+	return true
 }

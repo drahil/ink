@@ -23,6 +23,13 @@ func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) st
 	if innerHeight >= 2 {
 		renderedLines = append(renderedLines, "")
 	}
+	if e.IsSearchActive && len(renderedLines) < innerHeight {
+		searchPrefix := "find: "
+		searchWidth := max(0, innerWidth-lipgloss.Width(searchPrefix))
+		searchCursor := CursorPosition{Column: len([]rune(e.SearchQuery))}
+		searchLine := searchPrefix + searchCursor.RenderLineWithin(e.SearchQuery, searchWidth, focused && cursorVisible)
+		renderedLines = append(renderedLines, truncateCells(searchLine, innerWidth))
+	}
 
 	visibleHeight := max(0, innerHeight-len(renderedLines))
 	start, end := e.visibleLineRange(lines, visibleHeight)
