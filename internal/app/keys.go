@@ -20,12 +20,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
-	case "q":
+	case "ctrl+c", "ctrl+q":
 		return m, tea.Quit
-	case "tab":
-		m.focusNextPane()
-		return m, nil
-	case "alt+1", "cmd+1":
+	case "alt+1":
 		m.toggleFilesPane()
 		return m, nil
 	}
@@ -78,6 +75,8 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		m.editor.MoveCursorLeft()
 	case "backspace":
 		m.editor.Backspace()
+	case "tab":
+		m.editor.Tab()
 	case "enter":
 		m.editor.InsertNewline()
 	case "ctrl+f":
@@ -95,12 +94,11 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	m.cursorVisible = true
 	m.status = m.editorCursorStatus()
 
-	if before == m.editor.Content || m.editor.Path == "" {
-		return nil
+	if before != m.editor.Content {
+		m.editor.IsModified = true
 	}
 
-	m.saveVersion++
-	return autosave(m.saveVersion)
+	return nil
 }
 
 func (m *Model) handleFilesKey(msg tea.KeyMsg) {

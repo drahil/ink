@@ -109,6 +109,22 @@ func (e *EditorPane) Backspace() {
 	e.MoveCursorLeft()
 }
 
+func (e *EditorPane) Tab() {
+	lines := e.lines()
+	currentLine := []rune(lines[e.Cursor.Row])
+	tabSpaces := []rune("    ")
+
+	before := currentLine[:e.Cursor.Column]
+	after := currentLine[e.Cursor.Column:]
+	nextLine := make([]rune, 0, len(currentLine)+len(tabSpaces))
+	nextLine = append(nextLine, before...)
+	nextLine = append(nextLine, tabSpaces...)
+	nextLine = append(nextLine, after...)
+	lines[e.Cursor.Row] = string(nextLine)
+	e.Content = strings.Join(lines, "\n")
+	e.Cursor.Column += len(tabSpaces)
+}
+
 func (e *EditorPane) InsertNewline() {
 	lines := e.lines()
 	currentLine := []rune(lines[e.Cursor.Row])
@@ -129,6 +145,7 @@ func (e *EditorPane) InsertNewline() {
 func (e *EditorPane) OpenContent(path, content string) {
 	e.Content = content
 	e.Path = path
+	e.IsModified = false
 	e.Cursor = CursorPosition{
 		Row:    0,
 		Column: 0,

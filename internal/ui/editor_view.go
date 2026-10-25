@@ -45,15 +45,15 @@ func (e EditorPane) View(width, height int, focused bool, cursorVisible bool) st
 }
 
 func (e EditorPane) title(focused bool, width int) string {
-	if e.Path == "" {
-		return PaneTitle("editor", focused)
+	name := e.Path
+	if name == "" {
+		name = "editor"
+	}
+	if e.IsModified {
+		name += " [+]"
 	}
 
-	if focused {
-		return truncateCellsWithTail(fmt.Sprintf("[ %s * ]", e.Path), width, "...")
-	}
-
-	return truncateCellsWithTail(fmt.Sprintf("[ %s ]", e.Path), width, "...")
+	return truncateCellsWithTail(PaneTitle(name, focused), width, "...")
 }
 
 func (e EditorPane) visibleLineRange(lines []string, visibleHeight int) (int, int) {

@@ -36,7 +36,10 @@ func (m Model) handleSaveComplete(msg saveCompleteMsg) (Model, tea.Cmd) {
 
 	if msg.err != nil {
 		m.status = "save failed: " + msg.err.Error()
+		return m, nil
 	}
+
+	m.editor.IsModified = false
 
 	return m, nil
 }

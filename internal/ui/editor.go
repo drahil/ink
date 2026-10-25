@@ -7,11 +7,12 @@ type EditorPane struct {
 	IsSearchActive bool
 	SearchQuery    string
 	searchMatchEnd int
+	IsModified     bool
 }
 
 func NewEditorPane() EditorPane {
 	return EditorPane{
-		Content: "<?php\n\necho 'hello';\n",
+		Content: "",
 		Cursor: CursorPosition{
 			Row:    0,
 			Column: 0,
@@ -20,5 +21,6 @@ func NewEditorPane() EditorPane {
 		IsSearchActive: false,
 		SearchQuery:    "",
 		searchMatchEnd: -1,
+		IsModified:     false,
 	}
 }
