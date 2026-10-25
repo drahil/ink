@@ -19,6 +19,20 @@ func RenderHeader(width int) string {
 		Render(truncateCells(text, max(0, width-frameWidth)))
 }
 
+func RenderPrompt(width int, message string) string {
+	frameWidth := promptStyle.GetHorizontalFrameSize()
+	if width <= 0 {
+		return ""
+	}
+	if width < frameWidth {
+		return blankBlock(width, 1)
+	}
+
+	return promptStyle.
+		Width(max(0, width-frameWidth)).
+		Render(truncateCells(message, max(0, width-frameWidth)))
+}
+
 func RenderStatusBar(width int, status string) string {
 	text := fmt.Sprintf("status: %s | keys: tab focus | alt+1 files | q quit | ctrl+c quit", status)
 	frameWidth := statusStyle.GetHorizontalFrameSize()

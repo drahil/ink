@@ -13,33 +13,52 @@ func autosave(version int) tea.Cmd {
 }
 
 func (m Model) handleAutosave(msg autosaveMsg) (Model, tea.Cmd) {
-	if msg.version != m.saveVersion {
+	if msg.version != m.saveVersion || m.editor.Path == "" || !m.editor.IsModified {
 		return m, nil
 	}
 
-	path := m.editor.Path
-	content := m.editor.Content
-	if path == "" {
-		return m, nil
-	}
-
-	return m, func() tea.Msg {
-		err := m.project.WriteFile(path, content)
-		return saveCompleteMsg{version: msg.version, err: err}
-	}
+	return m, m.save()
 }
 
 func (m Model) handleSaveComplete(msg saveCompleteMsg) (Model, tea.Cmd) {
-	if msg.version != m.saveVersion {
-		return m, nil
-	}
+	quitAfterSave := m.quitAfterSave
+	m.quitAfterSave = false
 
 	if msg.err != nil {
 		m.status = "save failed: " + msg.err.Error()
 		return m, nil
 	}
 
-	m.editor.IsModified = false
+	// Edits made while the file was being written are not on disk yet.
+	if msg.version == m.saveVersion {
+		m.editor.IsModified = false
+	}
+	m.status = "saved " + msg.path
+
+	if quitAfterSave && !m.editor.IsModified {
+		return m, tea.Quit
+	}
 
 	return m, nil
+}
+
+func (m *Model) save() tea.Cmd {
+	if m.editor.Path == "" {
+		m.status = "no file name"
+		return nil
+	}
+	if !m.editor.IsModified {
+		m.status = "no changes"
+		return nil
+	}
+
+	store := m.project
+	path := m.editor.Path
+	content := m.editor.Content
+	version := m.saveVersion
+
+	return func() tea.Msg {
+		err := store.WriteFile(path, content)
+		return saveCompleteMsg{version: version, path: path, err: err}
+	}
 }

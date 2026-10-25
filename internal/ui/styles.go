@@ -22,4 +22,8 @@ var (
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("236")).
 			Padding(0, 1)
+
+	promptStyle = statusStyle.
+			Background(lipgloss.Color("62")).
+			Bold(true)
 )

@@ -9,8 +9,13 @@ import (
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.normalizeFocus()
 
-	if msg.String() == "ctrl+c" {
-		return m, tea.Quit
+	if m.prompt.active() {
+		return m, m.handlePromptKey(msg)
+	}
+
+	switch msg.String() {
+	case "ctrl+c", "ctrl+q":
+		return m, m.requestQuit()
 	}
 
 	// Search is a modal input: its keys must not trigger global shortcuts or
@@ -20,8 +25,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
-	case "ctrl+c", "ctrl+q":
-		return m, tea.Quit
 	case "alt+1":
 		m.toggleFilesPane()
 		return m, nil
@@ -82,6 +85,8 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	case "ctrl+f":
 		m.editor.InitSearch()
 		m.status = "find: " + m.editor.SearchQuery
+	case "ctrl+s":
+		return m.save()
 	default:
 		if len(msg.Runes) == 0 {
 			m.status = fmt.Sprintf("pressed %q", msg.String())
@@ -94,11 +99,17 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	m.cursorVisible = true
 	m.status = m.editorCursorStatus()
 
-	if before != m.editor.Content {
-		m.editor.IsModified = true
+	if before == m.editor.Content {
+		return nil
 	}
 
-	return nil
+	m.editor.IsModified = true
+	m.saveVersion++
+	if !m.autosave {
+		return nil
+	}
+
+	return autosave(m.saveVersion)
 }
 
 func (m *Model) handleFilesKey(msg tea.KeyMsg) {
@@ -130,7 +141,6 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 		}
 
 		m.editor.OpenContent(row.Path, content)
-		m.saveVersion = 0
 		m.focused = PaneEditor
 		m.cursorVisible = true
 		m.status = m.editorCursorStatus()

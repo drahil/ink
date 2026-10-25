@@ -14,6 +14,7 @@ type autosaveMsg struct {
 
 type saveCompleteMsg struct {
 	version int
+	path    string
 	err     error
 }
 

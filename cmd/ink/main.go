@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -12,12 +13,17 @@ import (
 var version = "dev"
 
 func main() {
-	if len(os.Args) == 2 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+	versionFlag := flag.Bool("v", false, "print version and exit")
+	versionFlagLong := flag.Bool("version", false, "print version and exit")
+	autosaveFlag := flag.Bool("autosave", false, "save changes automatically")
+	flag.Parse()
+
+	if *versionFlag || *versionFlagLong {
 		fmt.Printf("ink %s\n", version)
 		return
 	}
 
-	model := app.NewModel()
+	model := app.NewModel(*autosaveFlag)
 
 	program := tea.NewProgram(
 		model,

@@ -25,9 +25,12 @@ type Model struct {
 	filesVisible  bool
 	saveVersion   int
 	project       project.Store
+	autosave      bool
+	prompt        prompt
+	quitAfterSave bool
 }
 
-func NewModel() Model {
+func NewModel(autosave bool) Model {
 	store := project.NewStore(".")
 	items, err := store.ListFiles()
 	status := "ready"
@@ -43,6 +46,7 @@ func NewModel() Model {
 		editor:        ui.NewEditorPane(),
 		filesVisible:  true,
 		project:       store,
+		autosave:      autosave,
 	}
 }
 
