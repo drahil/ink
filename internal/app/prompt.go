@@ -13,8 +13,6 @@ const (
 	promptQuit
 )
 
-// prompt is a one-line question shown in place of the status bar. While it
-// is open, every key goes to it instead of the panes.
 type prompt struct {
 	kind    promptKind
 	message string
@@ -60,7 +58,6 @@ func (m *Model) handleQuitPromptKey(msg tea.KeyMsg) tea.Cmd {
 		m.closePrompt()
 		cmd := m.save()
 		if cmd == nil {
-			// Nothing to write (e.g. no file name); status explains why.
 			return nil
 		}
 		m.quitAfterSave = true

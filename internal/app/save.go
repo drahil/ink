@@ -29,7 +29,6 @@ func (m Model) handleSaveComplete(msg saveCompleteMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Edits made while the file was being written are not on disk yet.
 	if msg.version == m.saveVersion {
 		m.editor.IsModified = false
 	}

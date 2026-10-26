@@ -16,10 +16,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "ctrl+q":
 		return m, m.requestQuit()
+	case "ctrl+p":
+		if m.focused == PaneEditor && !m.filesPaneAvailable() {
+			if !m.filesVisible {
+				m.status = "files pane hidden (alt+1 to show)"
+			} else {
+				m.status = "window too narrow for the files pane"
+			}
+			return m, nil
+		}
+		m.focusNextPane()
+		return m, nil
 	}
 
-	// Search is a modal input: its keys must not trigger global shortcuts or
-	// mutate the document underneath it.
 	if m.focused == PaneEditor && m.editor.IsSearchActive {
 		return m, m.handleEditorKey(msg)
 	}

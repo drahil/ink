@@ -34,7 +34,7 @@ func RenderPrompt(width int, message string) string {
 }
 
 func RenderStatusBar(width int, status string) string {
-	text := fmt.Sprintf("status: %s | keys: tab focus | alt+1 files | q quit | ctrl+c quit", status)
+	text := fmt.Sprintf("status: %s | keys: ctrl+p focus | alt+1 files | ctrl+s save | ctrl+q quit", status)
 	frameWidth := statusStyle.GetHorizontalFrameSize()
 	if width <= 0 {
 		return ""
