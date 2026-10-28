@@ -60,7 +60,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.normalizeFocus()
-		m.status = fmt.Sprintf("terminal resized to %dx%d", m.width, m.height)
 	case cursorBlinkMsg:
 		if m.focused == PaneEditor || m.focused == PaneFiles {
 			m.cursorVisible = !m.cursorVisible

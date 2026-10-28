@@ -98,7 +98,6 @@ func (m *Model) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		return m.save()
 	default:
 		if len(msg.Runes) == 0 {
-			m.status = fmt.Sprintf("pressed %q", msg.String())
 			return nil
 		}
 
@@ -156,7 +155,6 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 		return
 	default:
 		if len(msg.Runes) == 0 {
-			m.status = fmt.Sprintf("pressed %q", msg.String())
 			return
 		}
 
