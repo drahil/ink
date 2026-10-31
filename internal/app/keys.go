@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/drahil/ink/internal/ui"
 )
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -142,13 +144,29 @@ func (m *Model) handleFilesKey(msg tea.KeyMsg) {
 			return
 		}
 
-		content, err := m.project.ReadFile(row.Path)
-		if err != nil {
-			m.status = "could not open: " + row.Path
+		if row.Path == m.editor.Path {
+			m.focused = PaneEditor
+			m.cursorVisible = true
 			return
 		}
 
-		m.editor.OpenContent(row.Path, content)
+		pane, ok := m.allOpenedFiles[row.Path]
+		if ok {
+			delete(m.allOpenedFiles, row.Path)
+		} else {
+			content, err := m.project.ReadFile(row.Path)
+			if err != nil {
+				m.status = "could not open: " + row.Path
+				return
+			}
+			pane = ui.NewEditorPane()
+			pane.OpenContent(row.Path, content)
+		}
+
+		if m.editor.Path != "" {
+			m.allOpenedFiles[m.editor.Path] = m.editor
+		}
+		m.editor = pane
 		m.focused = PaneEditor
 		m.cursorVisible = true
 		m.status = m.editorCursorStatus()

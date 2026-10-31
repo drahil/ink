@@ -2,6 +2,8 @@ package app
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -40,15 +42,26 @@ func (m *Model) handlePromptKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *Model) requestQuit() tea.Cmd {
-	if !m.editor.IsModified {
+	var modified []string
+	if m.editor.IsModified {
+		name := m.editor.Path
+		if name == "" {
+			name = "untitled"
+		}
+		modified = append(modified, name)
+	}
+	for path, pane := range m.allOpenedFiles {
+		if pane.IsModified {
+			modified = append(modified, path)
+		}
+	}
+
+	if len(modified) == 0 {
 		return tea.Quit
 	}
 
-	name := m.editor.Path
-	if name == "" {
-		name = "untitled"
-	}
-	m.openPrompt(promptQuit, fmt.Sprintf("save changes to %s? (y)es (n)o (esc) cancel", name))
+	sort.Strings(modified)
+	m.openPrompt(promptQuit, fmt.Sprintf("save changes to %s? (y)es (n)o (esc) cancel", strings.Join(modified, ", ")))
 	return nil
 }
 
@@ -56,7 +69,11 @@ func (m *Model) handleQuitPromptKey(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
 	case "y", "Y":
 		m.closePrompt()
-		cmd := m.save()
+		if m.editor.IsModified && m.editor.Path == "" {
+			m.status = "untitled buffer has no file name; quit and press n to discard it"
+			return nil
+		}
+		cmd := m.saveAll()
 		if cmd == nil {
 			return nil
 		}

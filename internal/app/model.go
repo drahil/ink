@@ -15,19 +15,20 @@ const (
 )
 
 type Model struct {
-	width         int
-	height        int
-	focused       Pane
-	status        string
-	cursorVisible bool
-	files         ui.FilesPane
-	editor        ui.EditorPane
-	filesVisible  bool
-	saveVersion   int
-	project       project.Store
-	autosave      bool
-	prompt        prompt
-	quitAfterSave bool
+	width          int
+	height         int
+	focused        Pane
+	status         string
+	cursorVisible  bool
+	files          ui.FilesPane
+	editor         ui.EditorPane
+	filesVisible   bool
+	saveVersion    int
+	project        project.Store
+	autosave       bool
+	prompt         prompt
+	quitAfterSave  bool
+	allOpenedFiles map[string]ui.EditorPane
 }
 
 func NewModel(autosave bool) Model {
@@ -39,14 +40,15 @@ func NewModel(autosave bool) Model {
 	}
 
 	return Model{
-		focused:       PaneEditor,
-		status:        status,
-		cursorVisible: true,
-		files:         ui.NewFilesPane(items),
-		editor:        ui.NewEditorPane(),
-		filesVisible:  true,
-		project:       store,
-		autosave:      autosave,
+		focused:        PaneEditor,
+		status:         status,
+		cursorVisible:  true,
+		files:          ui.NewFilesPane(items),
+		editor:         ui.NewEditorPane(),
+		filesVisible:   true,
+		project:        store,
+		autosave:       autosave,
+		allOpenedFiles: make(map[string]ui.EditorPane),
 	}
 }
 
