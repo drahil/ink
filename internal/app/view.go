@@ -52,10 +52,24 @@ func (m Model) renderMain(mainHeight int) string {
 		filesWidth = min(filesWidth, m.width-minEditorWidth)
 		editorWidth := max(0, m.width-filesWidth)
 		editorPane := m.editor.View(editorWidth, mainHeight, m.focused == PaneEditor, m.cursorVisible)
-		filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible)
+		filesPane := m.files.View(filesWidth, mainHeight, m.focused == PaneFiles, m.cursorVisible, m.modifiedPaths())
 
 		return lipgloss.JoinHorizontal(lipgloss.Top, editorPane, filesPane)
 	}
 
 	return m.editor.View(max(0, m.width), mainHeight, m.focused == PaneEditor, m.cursorVisible)
+}
+
+func (m Model) modifiedPaths() map[string]bool {
+	modified := make(map[string]bool)
+	if m.editor.IsModified && m.editor.Path != "" {
+		modified[m.editor.Path] = true
+	}
+	for path, pane := range m.allOpenedFiles {
+		if pane.IsModified {
+			modified[path] = true
+		}
+	}
+
+	return modified
 }

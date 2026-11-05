@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
+func (f FilesPane) View(width, height int, focused, cursorVisible bool, modified map[string]bool) string {
 	innerWidth, innerHeight := PaneInnerSize(width, height, focused)
 	renderedLines := make([]string, 0, innerHeight)
 
@@ -47,6 +47,8 @@ func (f FilesPane) View(width, height int, focused, cursorVisible bool) string {
 				marker = "+ "
 			}
 			name += "/"
+		} else if modified[item.Path] {
+			name += " [+]"
 		}
 
 		label := strings.Repeat("  ", item.Depth) + marker + name
