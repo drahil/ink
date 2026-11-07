@@ -33,8 +33,12 @@ func RenderPrompt(width int, message string) string {
 		Render(truncateCells(message, max(0, width-frameWidth)))
 }
 
-func RenderStatusBar(width int, status string) string {
-	text := fmt.Sprintf("status: %s | keys: ctrl+p focus | alt+1 files | ctrl+s save | ctrl+q quit", status)
+func RenderStatusBar(width int, status string, numberOfChangedFiles int) string {
+	text := fmt.Sprintf("status: %s", status)
+	if numberOfChangedFiles > 0 {
+		text += fmt.Sprintf(" | %d unsaved", numberOfChangedFiles)
+	}
+	text += " | keys: ctrl+p focus | alt+1 files | ctrl+s save | ctrl+q quit"
 	frameWidth := statusStyle.GetHorizontalFrameSize()
 	if width <= 0 {
 		return ""

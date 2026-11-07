@@ -12,7 +12,7 @@ func (m Model) View() string {
 	}
 
 	header := ui.RenderHeader(m.width)
-	status := ui.RenderStatusBar(m.width, m.status)
+	status := ui.RenderStatusBar(m.width, m.status, m.unsavedCount())
 	if m.prompt.active() {
 		status = ui.RenderPrompt(m.width, m.prompt.message)
 	}
@@ -72,4 +72,13 @@ func (m Model) modifiedPaths() map[string]bool {
 	}
 
 	return modified
+}
+
+func (m Model) unsavedCount() int {
+	count := len(m.modifiedPaths())
+	if m.editor.IsModified && m.editor.Path == "" {
+		count++
+	}
+
+	return count
 }
