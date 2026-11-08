@@ -29,6 +29,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.focusNextPane()
 		return m, nil
+	case "alt+s":
+		return m, m.saveAll()
 	}
 
 	if m.focused == PaneEditor && m.editor.IsSearchActive {
