@@ -12,7 +12,7 @@ func (m Model) View() string {
 	}
 
 	header := ui.RenderHeader(m.width)
-	status := ui.RenderStatusBar(m.width, m.status, m.unsavedCount())
+	status := ui.RenderStatusBar(m.width, m.unsavedCount())
 	if m.prompt.active() {
 		status = ui.RenderPrompt(m.width, m.prompt.message)
 	}
