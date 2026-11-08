@@ -14,7 +14,7 @@ func (m Model) View() string {
 	header := ui.RenderHeader(m.width)
 	status := ui.RenderStatusBar(m.width, m.unsavedCount())
 	if m.prompt.active() {
-		status = ui.RenderPrompt(m.width, m.prompt.message)
+		status = ui.RenderPrompt(m.width, max(1, m.height/2), m.prompt.title, m.prompt.items, m.prompt.message)
 	}
 
 	headerHeight := lipgloss.Height(header)

@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -17,6 +16,8 @@ const (
 
 type prompt struct {
 	kind    promptKind
+	title   string
+	items   []string
 	message string
 }
 
@@ -24,8 +25,8 @@ func (p prompt) active() bool {
 	return p.kind != promptNone
 }
 
-func (m *Model) openPrompt(kind promptKind, message string) {
-	m.prompt = prompt{kind: kind, message: message}
+func (m *Model) openPrompt(kind promptKind, title string, items []string, message string) {
+	m.prompt = prompt{kind: kind, title: title, items: items, message: message}
 }
 
 func (m *Model) closePrompt() {
@@ -61,7 +62,11 @@ func (m *Model) requestQuit() tea.Cmd {
 	}
 
 	sort.Strings(modified)
-	m.openPrompt(promptQuit, fmt.Sprintf("save changes to %s? (y)es (n)o (esc) cancel", strings.Join(modified, ", ")))
+	title := fmt.Sprintf("unsaved changes in %d files:", len(modified))
+	if len(modified) == 1 {
+		title = "unsaved changes in 1 file:"
+	}
+	m.openPrompt(promptQuit, title, modified, "save all? (y)es (n)o (esc) cancel")
 	return nil
 }
 
